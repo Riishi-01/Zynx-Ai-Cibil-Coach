@@ -13,6 +13,10 @@ Input your PAN and monthly income → Get:
 
 Everything is grounded in your actual credit data — no generic advice.
 
+### Dashboard Preview
+
+![CIBIL Coach Dashboard](assets/dashboard-screenshot.png)
+
 ## CIBIL Score Explained
 
 | Score Range | Band | Meaning |
