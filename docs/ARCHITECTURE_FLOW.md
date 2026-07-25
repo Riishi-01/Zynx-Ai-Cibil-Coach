@@ -18,7 +18,7 @@ classDiagram
     class PanValidator {
         pan_card: str
         is_valid: bool
-        format_regex: ^[A-Z]{5}\d{4}[A-Z]$
+        format_check: 5 letters + 4 digits + 1 letter
         Error: InvalidPAN
         Return: bool
     }
