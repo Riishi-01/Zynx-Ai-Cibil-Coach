@@ -106,8 +106,3 @@ alembic/versions/__pycache__/
 build_docs/__pycache__/
 build_docs/*.pyc
 build_docs/.DS_Store
-
-# Assets (screenshots, images - keep references in README)
-assets/*.png
-assets/*.jpg
-assets/*.jpeg
