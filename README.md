@@ -129,7 +129,7 @@ Citations (CIBIL codes + numbers verified)
 Output: Score + Explanation + Recommendations
 ```
 
-**For technical details, see [ARCHITECTURE_FLOW.md](ARCHITECTURE_FLOW.md)**
+**For technical details, see [ARCHITECTURE_FLOW.md](docs/ARCHITECTURE_FLOW.md)**
 
 ## Development
 
