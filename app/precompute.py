@@ -110,18 +110,16 @@ def precompute_facts(
     # ==== §1 Score & trend
     score = record.score
     score_band = record.score_band
-    previous_score_1mo = getattr(record, 'previous_score_1mo', None)
-    previous_score_3mo = getattr(record, 'previous_score_3mo', None)
-    
-    # Read from raw customer data if present; otherwise leave as None
-    from app.db import get_repository
-    raw_record = get_repository().get_by_customer_id(record.customer_id)
-    previous_score_1mo = raw_record.score.previous_score_1mo
-    previous_score_3mo = raw_record.score.previous_score_3mo
-    
+    # Score history is carried on the SanitisedRecord (populated by pii_parser
+    # from the raw record). Reading it here keeps precompute a pure function
+    # that takes a SanitisedRecord and returns a FactSet — no DB lookup, so
+    # the same code path works against SQLite and Supabase.
+    previous_score_1mo = record.previous_score_1mo
+    previous_score_3mo = record.previous_score_3mo
+
     score_change_1mo = (score - previous_score_1mo) if previous_score_1mo else 0
     score_change_3mo = (score - previous_score_3mo) if previous_score_3mo else 0
-    
+
     # Trend with hysteresis
     if score_change_3mo < -HYSTERESIS_SCORE_POINTS:
         score_trend = "falling"
@@ -129,11 +127,11 @@ def precompute_facts(
         score_trend = "rising"
     else:
         score_trend = "stable"
-    
+
     score_volatility_3mo = abs(score_change_3mo) if previous_score_3mo else 0
-    
+
     # Freshness
-    freshness_days = (as_of_date - raw_record.score.score_as_of_date).days
+    freshness_days = (as_of_date - record.score_as_of_date).days
     
     # ==== §2 Account-level facts (per account)
     account_utilizations = {}
@@ -516,6 +514,6 @@ def precompute_facts(
         credit_age_score=credit_age_score,
         # §11
         as_of_date=as_of_date,
-        score_as_of_date=raw_record.score.score_as_of_date,
+        score_as_of_date=record.score_as_of_date,
         facts_computed_at=datetime.utcnow(),
     )

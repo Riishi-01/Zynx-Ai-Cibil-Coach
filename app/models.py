@@ -15,6 +15,21 @@ Knowledge base schema (seeded from Frontend_docs/label_kb.json):
   - kb_reason_codes: CIBIL reason codes per label
   - kb_sources: citation title/URL pairs per label
   - kb_meta: the KB's top-level conventions (band ranges, priority legend)
+
+Dialect support
+---------------
+These models run against SQLite (local dev, the default) and Postgres
+(Supabase in production). Two pieces adapt at the column type level:
+
+  * JsonColumn — JSON on SQLite, JSONB on Postgres. Used for payment_history
+    and the kb_meta `value` column.
+  * DateTime(timezone=True) — naive on SQLite (timezone is ignored),
+    TIMESTAMP WITH TIME ZONE on Postgres. Matches the schema in
+    docs/supabase_schema.sql.
+
+The Supabase schema is created out-of-band by running docs/supabase_schema.sql
+in the Supabase SQL Editor; the ORM never auto-creates tables in production
+(see app/database.py — DATABASE_URL gates that off).
 """
 
 from datetime import date, datetime
@@ -24,8 +39,23 @@ from sqlalchemy import (
     Column, String, Integer, Float, Date, DateTime,
     Boolean, ForeignKey, Text, Enum, create_engine
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, declarative_base
-from sqlalchemy.types import JSON
+from sqlalchemy.types import JSON, TypeDecorator
+
+# Dialect-aware JSON column: JSONB on Postgres, JSON on SQLite. Lets the same
+# ORM models serve either backend without per-table rewrites.
+class JsonColumn(TypeDecorator):
+    """JSON on SQLite (legacy local-dev file), JSONB on Postgres (Supabase)."""
+
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(JSONB())
+        return dialect.type_descriptor(JSON())
+
 
 Base = declarative_base()
 
@@ -48,8 +78,8 @@ class CustomerModel(Base):
     region = Column(String(10), nullable=False)  # e.g., "IN-HYD"
     
     # Timestamps
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     score = relationship("ScoreModel", uselist=False, back_populates="customer", cascade="all, delete-orphan")
@@ -76,8 +106,8 @@ class ScoreModel(Base):
     previous_score_3mo = Column(Integer, nullable=True)
     
     # Metadata
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationship
     customer = relationship("CustomerModel", back_populates="score")
@@ -105,11 +135,11 @@ class AccountModel(Base):
     is_revolving = Column(Boolean, nullable=False)
     
     # Payment history: JSON array of 24 monthly status codes (0, 1, 2, 3)
-    payment_history = Column(JSON, nullable=False)
+    payment_history = Column(JsonColumn, nullable=False)
     
     # Metadata
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationship
     customer = relationship("CustomerModel", back_populates="accounts")
@@ -128,8 +158,8 @@ class InquiryModel(Base):
     inquiry_type = Column(String(50), nullable=False)  # "hard", "soft", etc.
     
     # Metadata
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationship
     customer = relationship("CustomerModel", back_populates="inquiries")
@@ -159,8 +189,8 @@ class CollectionModel(Base):
     is_medical = Column(Boolean, nullable=False, default=False)
     
     # Metadata
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationship
     customer = relationship("CustomerModel", back_populates="collections")
@@ -185,8 +215,8 @@ class PublicRecordModel(Base):
     filed_date = Column(Date, nullable=False)
     
     # Metadata
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationship
     customer = relationship("CustomerModel", back_populates="public_records")
@@ -230,8 +260,8 @@ class KBLabelModel(Base):
     personalized_response_template = Column(Text, nullable=False)
 
     # Timestamps
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships. order_by keeps authored sequence stable on read.
     mitigation_steps = relationship(
@@ -320,7 +350,7 @@ class KBMetaModel(Base):
     __tablename__ = "kb_meta"
 
     key = Column(String(100), primary_key=True)
-    value = Column(JSON, nullable=False)
+    value = Column(JsonColumn, nullable=False)
 
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

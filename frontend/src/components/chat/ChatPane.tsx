@@ -11,6 +11,8 @@ import { ModelFooter } from './ModelFooter';
 interface ChatPaneProps {
   pan: string;
   incomeInr: number;
+  /** Turnstile token captured at submit time, forwarded into /api/analyze. */
+  turnstileToken?: string | null;
   onCanvasReady?: (data: CanvasResponse) => void;
   onPlanDelta?: (data: PartialCoachPlan) => void;
   /** Fired when the user wants to bail back to the IDLE form. */
@@ -32,7 +34,7 @@ const NEAR_BOTTOM_PX = 100;
  * The LLM is only called when this pane mounts — never during chart
  * rendering, which is fully deterministic.
  */
-export function ChatPane({ pan, incomeInr, onCanvasReady, onPlanDelta, onRetry }: ChatPaneProps) {
+export function ChatPane({ pan, incomeInr, turnstileToken, onCanvasReady, onPlanDelta, onRetry }: ChatPaneProps) {
   const stream = useStream();
   const scrollRef = useRef<HTMLDivElement>(null);
   const initializedRef = useRef(false);
@@ -89,13 +91,17 @@ export function ChatPane({ pan, incomeInr, onCanvasReady, onPlanDelta, onRetry }
     initializedRef.current = true;
     requestStartRef.current = performance.now();
 
-    stream.send('/api/analyze', { pan, income: incomeInr }, {
-      onCanvas: (data) => onCanvasReady?.(data),
-      onPlanDelta: (data) => onPlanDelta?.(data),
-      onDone: () => {
-        // The plan is the initial assistant message, rendered from plan_delta.
+    stream.send(
+      '/api/analyze',
+      { pan, income: incomeInr, turnstile_token: turnstileToken ?? undefined },
+      {
+        onCanvas: (data) => onCanvasReady?.(data),
+        onPlanDelta: (data) => onPlanDelta?.(data),
+        onDone: () => {
+          // The plan is the initial assistant message, rendered from plan_delta.
+        },
       },
-    });
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

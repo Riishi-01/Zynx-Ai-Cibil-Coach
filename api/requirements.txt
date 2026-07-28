@@ -1,0 +1,17 @@
+# Vercel function deps. Vercel uses this list when building the function's
+# runtime image; the runtime ignores the project-root requirements.txt.
+# Versions match the project-root requirements.txt so the function behaves
+# identically to local dev.
+
+pydantic==2.12.3
+pyyaml==6.0.3
+python-dotenv==1.0.1
+langchain==0.3.17
+langchain-openai==0.2.10
+sqlalchemy==2.0.35
+fastapi==0.115.0
+openai==1.109.1
+psycopg[binary]>=3.3.0
+supabase>=2.20.0
+websockets>=13.0
+httpx==0.27.2

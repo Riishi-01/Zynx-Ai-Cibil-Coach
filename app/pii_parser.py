@@ -67,6 +67,10 @@ def sanitise_record(record: CustomerRecord) -> SanitisedRecord:
         score=record.score.score,
         score_band=record.score.band,
         score_as_of_date=record.score.score_as_of_date,
+        # Score history — not PII; pass through so precompute doesn't need a
+        # second DB round-trip (works on SQLite and Supabase backends).
+        previous_score_1mo=record.score.previous_score_1mo,
+        previous_score_3mo=record.score.previous_score_3mo,
         accounts=sanitised_accounts,
         inquiries=inquiries,
         collections=collections,

@@ -2,6 +2,7 @@
 
 import os
 import json
+import logging
 from datetime import datetime
 from typing import Any, AsyncGenerator, Optional
 
@@ -29,7 +30,10 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Enable CORS
+# Enable CORS. The wildcard origin is fine for this portfolio demo — both
+# the frontend and the backend live on the same Vercel domain in production
+# (no cross-origin requests in practice). If you ever split them, restrict
+# allow_origins to the deployed frontend URL.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -45,6 +49,76 @@ _SSE_HEADERS = {
     "Connection": "keep-alive",
     "X-Accel-Buffering": "no",
 }
+
+
+# =========================================================== observability ==
+#
+# LangSmith is the observability layer for LLM calls. The env vars below are
+# the standard LangChain tracing variables — when LANGCHAIN_API_KEY is set,
+# every LangChain chain (incl. our ChatOpenAI wrapper in llm_stream.py) is
+# auto-traced. When unset, LangChain runs without tracing and there is no
+# overhead. Local dev defaults to no tracing; production sets the key in
+# Vercel env vars.
+_LANGSMITH_ENABLED = bool(os.environ.get("LANGCHAIN_API_KEY") or os.environ.get("LANGSMITH_API_KEY"))
+if _LANGSMITH_ENABLED:
+    # LangChain reads these from os.environ at chain construction time. They
+    # have to be set before the first ChatOpenAI() call — typically the first
+    # request after the function cold-starts.
+    os.environ.setdefault("LANGCHAIN_TRACING_V2", "true")
+    os.environ.setdefault("LANGCHAIN_API_KEY", os.environ.get("LANGCHAIN_API_KEY") or os.environ["LANGSMITH_API_KEY"])
+    os.environ.setdefault("LANGCHAIN_PROJECT", os.environ.get("LANGSMITH_PROJECT", "cibil-coach"))
+    logging.info("LangSmith tracing enabled (project=%s)", os.environ["LANGCHAIN_PROJECT"])
+
+
+# =============================================================== turnstile ==
+#
+# Cloudflare Turnstile is the bot gate. When TURNSTILE_SECRET_KEY is set the
+# /api/analyze and /api/chat endpoints verify the token from the request body
+# against Cloudflare's siteverify API. When unset, the verify call returns
+# True (no gate) so local dev and the Phase 1 deploy work without it.
+#
+# Phase 2 (after first deploy): add VITE_TURNSTILE_SITE_KEY + TURNSTILE_SECRET_KEY
+# to Vercel env vars once the production URL is registered on Cloudflare.
+import httpx
+
+_TURNSTILE_SECRET = os.environ.get("TURNSTILE_SECRET_KEY")
+_TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+
+
+async def verify_turnstile(token: Optional[str], ip: Optional[str]) -> bool:
+    """Verify a Turnstile token with Cloudflare. Returns True when the gate
+    is disabled (no TURNSTILE_SECRET_KEY configured).
+
+    The "no key -> True" behaviour is the env-gate: every code path that calls
+    this can ignore the return value when the gate is off, and the same
+    endpoint stays protected when the key is set.
+    """
+    if not _TURNSTILE_SECRET:
+        return True
+    if not token:
+        return False
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.post(
+                _TURNSTILE_VERIFY_URL,
+                data={
+                    "secret": _TURNSTILE_SECRET,
+                    "response": token,
+                    "remoteip": ip or "",
+                },
+            )
+            response.raise_for_status()
+            return bool(response.json().get("success", False))
+    except Exception as exc:
+        # Fail closed: a Cloudflare outage should not silently disable the gate.
+        logging.warning("Turnstile verify failed: %s", exc)
+        return False
+
+
+def _turnstile_enabled() -> bool:
+    """True when the Turnstile gate is actively enforcing."""
+    return bool(_TURNSTILE_SECRET)
 
 
 def _sse(event: str, data: Any) -> str:
@@ -96,9 +170,11 @@ async def analyze_customer(request: Request):
     An `error` event is emitted instead of 3/4 if generation fails; the canvas
     has already been delivered by then, so the UI degrades to charts-only.
 
-    Body: {"pan": "ABCPS1234A", "income": 75000}
+    Body: {"pan": "ABCPS1234A", "income": 75000, "turnstile_token": "..." (optional)}
     """
-    pan, income_inr = _parse_analysis_body(await request.json())
+    body = await request.json()
+    await _enforce_turnstile(request, body)
+    pan, income_inr = _parse_analysis_body(body)
 
     # Everything deterministic happens up front, so failures surface as proper
     # HTTP status codes rather than mid-stream errors.
@@ -151,10 +227,11 @@ async def analyze_customer(request: Request):
 async def chat_followup(request: Request):
     """Answer a follow-up question, streaming markdown as SSE.
 
-    Body: {"pan": ..., "income": ..., "message": "...", "history": [...]}
+    Body: {"pan": ..., "income": ..., "message": "...", "history": [...], "turnstile_token": "..." (optional)}
     History entries are {"role": "user"|"assistant", "content": "..."}.
     """
     body = await request.json()
+    await _enforce_turnstile(request, body)
     pan, income_inr = _parse_analysis_body(body)
 
     question = str(body.get("message", "")).strip()
@@ -217,6 +294,31 @@ def _parse_analysis_body(body: dict) -> tuple[str, Optional[int]]:
     return pan, income_inr
 
 
+def _extract_turnstile_token(body: dict) -> Optional[str]:
+    """Pull the Turnstile token from the request body if present.
+
+    Optional in the body schema — when the gate is disabled (no TURNSTILE_SECRET_KEY
+    in the env) the value is ignored, so existing callers that don't send the
+    field keep working. The frontend sends it after Phase 2 Turnstile is wired up.
+    """
+    token = body.get("turnstile_token")
+    return str(token).strip() if token else None
+
+
+async def _enforce_turnstile(request: Request, body: dict) -> None:
+    """Verify the Turnstile token from the body, if the gate is enabled.
+
+    Raises HTTP 403 when the gate rejects the request. No-op when TURNSTILE_SECRET_KEY
+    is unset (Phase 1 deploy before Turnstile is configured).
+    """
+    if not _turnstile_enabled():
+        return
+    ip = request.client.host if request.client else None
+    token = _extract_turnstile_token(body)
+    if not await verify_turnstile(token, ip):
+        raise HTTPException(status_code=403, detail="Bot detected")
+
+
 @app.post("/api/labels", response_model=LabelsResponse)
 async def analyse_labels(request: Request) -> LabelsResponse:
     """Return the full 32-label diagnostic for a PAN.
@@ -248,9 +350,11 @@ async def analyse_canvas(request: Request) -> CanvasResponse:
     payment heatmap, and the label diagnostic. No LLM, so the canvas can render
     before any coaching text has been generated.
 
-    Body: {"pan": "ABCPS1234A", "income": 75000}
+    Body: {"pan": "ABCPS1234A", "income": 75000, "turnstile_token": "..." (optional)}
     """
-    pan, income_inr = _parse_analysis_body(await request.json())
+    body = await request.json()
+    await _enforce_turnstile(request, body)
+    pan, income_inr = _parse_analysis_body(body)
 
     try:
         return build_canvas_response(pan, monthly_income_inr=income_inr)

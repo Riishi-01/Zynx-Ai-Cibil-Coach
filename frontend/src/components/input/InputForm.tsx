@@ -1,14 +1,17 @@
 import { motion } from 'framer-motion';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { useState } from 'react';
 
 import { isIncomeValid, isPanValid, normalizePan, parseIncomeInput } from '../../lib/validation';
 import { COPY } from '../../copy';
+import { getTurnstileSiteKey } from '../../lib/turnstile';
 import { Dropdown } from './Dropdown';
 import { IncomeField } from './IncomeField';
 
 export interface InputFormValues {
   pan: string;
   incomeInr: number;
+  turnstileToken: string | null;
 }
 
 interface InputFormProps {
@@ -28,14 +31,24 @@ interface InputFormProps {
  * Shares `layoutId="input-form"` with InputSummary so Framer Motion morphs
  * this element into the top-left chip on submit (SPEC.md motion #1) instead
  * of unmounting one and mounting the other.
+ *
+ * Turnstile widget is mounted only when VITE_TURNSTILE_SITE_KEY is set
+ * (Phase 2 of the deploy runbook). In Phase 1 the widget does not render and
+ * the backend's verify_turnstile() short-circuits to True.
  */
 export function InputForm({ onSubmit, submitting = false, reducedMotion = false }: InputFormProps) {
   const [pan, setPan] = useState('');
   const [incomeDigits, setIncomeDigits] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileSiteKey = getTurnstileSiteKey();
 
   const panValid = isPanValid(pan);
   const incomeValid = isIncomeValid(incomeDigits);
-  const canSubmit = panValid && incomeValid && !submitting;
+  // When Turnstile is enabled, the token must be present before submit.
+  // When disabled (no site key), turnstileToken stays null and the backend
+  // gate is open, so canSubmit doesn't depend on it.
+  const turnstileOk = !turnstileSiteKey || turnstileToken !== null;
+  const canSubmit = panValid && incomeValid && !submitting && turnstileOk;
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -44,7 +57,7 @@ export function InputForm({ onSubmit, submitting = false, reducedMotion = false 
     const incomeInr = parseIncomeInput(incomeDigits);
     if (incomeInr === null) return;
 
-    onSubmit({ pan: normalizePan(pan), incomeInr });
+    onSubmit({ pan: normalizePan(pan), incomeInr, turnstileToken });
   }
 
   return (
@@ -64,6 +77,17 @@ export function InputForm({ onSubmit, submitting = false, reducedMotion = false 
         <Dropdown value={pan} onChange={setPan} disabled={submitting} />
         <IncomeField value={incomeDigits} onChange={setIncomeDigits} disabled={submitting} />
       </div>
+
+      {turnstileSiteKey && (
+        <Turnstile
+          siteKey={turnstileSiteKey}
+          onSuccess={(token) => setTurnstileToken(token)}
+          onError={() => setTurnstileToken(null)}
+          onExpire={() => setTurnstileToken(null)}
+          // Invisible widget: no UI chrome; submits are gated by token presence.
+          options={{ execution: 'render', appearance: 'always' }}
+        />
+      )}
 
       <button
         type="submit"

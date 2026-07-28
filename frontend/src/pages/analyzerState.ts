@@ -17,6 +17,13 @@ export type AnalyzerStage = 'IDLE' | 'SUBMITTING' | 'STREAMING' | 'CHATTING';
 export interface SubmittedValues {
   pan: string;
   incomeInr: number;
+  /**
+   * Turnstile token from the invisible widget, when configured. Null/undefined
+   * when the gate is disabled (Phase 1 deploy before VITE_TURNSTILE_SITE_KEY
+   * is set). The backend short-circuits the gate to True when no secret is
+   * configured, so omitting this is always safe.
+   */
+  turnstileToken?: string | null;
 }
 
 export interface AnalyzerState {

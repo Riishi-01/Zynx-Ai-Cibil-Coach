@@ -111,6 +111,7 @@ export function Analyzer() {
                 <ChatPane
                   pan={state.values.pan}
                   incomeInr={state.values.incomeInr}
+                  turnstileToken={state.values.turnstileToken}
                   onCanvasReady={(data) => {
                     setCanvasData(data);
                     dispatchWithState({ type: 'STREAM_STARTED' });

@@ -170,6 +170,10 @@ class SanitisedRecord(BaseModel):
     score: int
     score_band: ScoreBand
     score_as_of_date: date
+    # Carried forward from the raw record so precompute doesn't need a second
+    # DB round-trip (works on both SQLite and Supabase backends).
+    previous_score_1mo: Optional[int] = None
+    previous_score_3mo: Optional[int] = None
     accounts: list[SanitisedAccount]
     inquiries: list[Inquiry]  # Already low-PII
     collections: list[Collection]  # Already low-PII

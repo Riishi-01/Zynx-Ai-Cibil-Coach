@@ -120,6 +120,120 @@ class KnowledgeBase:
             sources=[KBSource(title=s.title, url=s.url) for s in row.sources],
         )
 
+    def load_from_supabase(self) -> None:
+        """Load every label from the kb_* tables via Supabase.
+
+        Mirrors load_from_db(): eager-loads each label's child rows (mitigation
+        steps, facts to cite, reason codes, sources) so the load is O(labels)
+        queries rather than O(labels * children).
+
+        Used when DATABASE_URL targets Postgres (Supabase deploys). The
+        SQLite path uses load_from_db().
+        """
+        # Imported lazily so this module can be loaded without the supabase
+        # SDK being installed (local dev / tests / CLI tooling).
+        import os
+
+        from supabase import create_client
+
+        url = os.environ.get("SUPABASE_URL")
+        # Accept both classic JWT (SUPABASE_SERVICE_ROLE_KEY) and the new
+        # sb_secret_… token (SUPABASE_SECRET_KEY) introduced in late 2024.
+        key = (
+            os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+            or os.environ.get("SUPABASE_SECRET_KEY")
+        )
+        if not url or not key:
+            raise RuntimeError(
+                "load_from_supabase requires SUPABASE_URL and a service-role key "
+                "(SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY)."
+            )
+        client = create_client(url, key)
+
+        # Fetch all labels first, then child rows in batched queries.
+        labels_resp = (
+            client.table("kb_labels")
+            .select("*")
+            .order("priority_rank")
+            .order("label_id")
+            .execute()
+        )
+        rows = labels_resp.data or []
+        if not rows:
+            raise KBUnavailable(
+                "No labels found in kb_labels. Run scripts/export_sqlite_to_supabase.py "
+                "and scripts/import_to_supabase.py to seed Supabase."
+            )
+
+        label_ids = [r["label_id"] for r in rows]
+        mitigation_resp = (
+            client.table("kb_mitigation_steps")
+            .select("label_id, step_order, step_text")
+            .in_("label_id", label_ids)
+            .order("step_order")
+            .execute()
+        )
+        facts_resp = (
+            client.table("kb_facts_to_cite")
+            .select("label_id, fact_name")
+            .in_("label_id", label_ids)
+            .execute()
+        )
+        reasons_resp = (
+            client.table("kb_reason_codes")
+            .select("label_id, reason_code")
+            .in_("label_id", label_ids)
+            .execute()
+        )
+        sources_resp = (
+            client.table("kb_sources")
+            .select("label_id, title, url")
+            .in_("label_id", label_ids)
+            .execute()
+        )
+
+        # Group child rows by label_id, preserving server-side ordering.
+        from collections import defaultdict
+
+        mitigations: dict[str, list[dict]] = defaultdict(list)
+        for row in mitigation_resp.data or []:
+            mitigations[row["label_id"]].append(row)
+        facts: dict[str, list[dict]] = defaultdict(list)
+        for row in facts_resp.data or []:
+            facts[row["label_id"]].append(row)
+        reasons: dict[str, list[dict]] = defaultdict(list)
+        for row in reasons_resp.data or []:
+            reasons[row["label_id"]].append(row)
+        sources: dict[str, list[dict]] = defaultdict(list)
+        for row in sources_resp.data or []:
+            sources[row["label_id"]].append(row)
+
+        # Reconstruct KBEntry objects using the same _to_entry-shaped mapping.
+        entries: dict[str, KBEntry] = {}
+        for row in rows:
+            entries[row["label_id"]] = KBEntry(
+                label_id=row["label_id"],
+                display_name=row["display_name"],
+                category=LabelCategory(row["category"]),
+                severity=LabelSeverity(row["severity"]),
+                priority_rank=row["priority_rank"],
+                fact_id=row["fact_id"],
+                condition=row["condition"],
+                condition_human=row["condition_human"],
+                what_it_means_cibil=row["what_it_means_cibil"],
+                why_it_matters=row["why_it_matters"],
+                mitigation_steps=[r["step_text"] for r in mitigations[row["label_id"]]],
+                facts_to_cite=[r["fact_name"] for r in facts[row["label_id"]]],
+                cibil_reason_codes=[r["reason_code"] for r in reasons[row["label_id"]]],
+                personalized_response_template=row["personalized_response_template"],
+                sources=[
+                    KBSource(title=r["title"], url=r["url"])
+                    for r in sources[row["label_id"]]
+                ],
+            )
+
+        self._entries = entries
+
     # ------------------------------------------------------------- lookups ----
 
     def get(self, label_id: str) -> Optional[KBEntry]:
@@ -154,11 +268,30 @@ _kb: Optional[KnowledgeBase] = None
 
 
 def get_knowledge_base() -> KnowledgeBase:
-    """Get the global knowledge base, initialising it from the database if needed."""
+    """Get the global knowledge base, initialising it from the database if needed.
+
+    On SQLite: loads via load_from_db() (SQLAlchemy ORM).
+    On Postgres/Supabase: loads via load_from_supabase() (supabase-py REST client).
+
+    Selection: the Supabase loader activates when EITHER DATABASE_URL targets
+    Postgres (classic path) OR SUPABASE_URL is configured (typical Vercel
+    deploy where the supabase-py REST client uses SUPABASE_URL directly).
+
+    Both paths produce the same KBEntry objects, so downstream code in
+    prompt_builder.py / citations.py is backend-agnostic.
+    """
+    import os
+    from app.database import IS_POSTGRES
+
+    use_supabase = IS_POSTGRES or bool(os.environ.get("SUPABASE_URL"))
+
     global _kb
     if _kb is None:
         kb = KnowledgeBase()
-        kb.load_from_db()
+        if use_supabase:
+            kb.load_from_supabase()
+        else:
+            kb.load_from_db()
         _kb = kb
     return _kb
 

@@ -158,8 +158,23 @@ class CustomerRepository:
 _repository: Optional[CustomerRepository] = None
 
 
-def get_repository() -> CustomerRepository:
-    """Get the global customer repository."""
+def get_repository():
+    """Get the global customer repository.
+
+    Returns either CustomerRepository (SQLite, default) or a SupabaseRepository
+    (when DATABASE_URL targets Postgres or SUPABASE_URL is configured). Both
+    expose the same surface (get_by_pan, get_by_customer_id, list_all_customers,
+    count) so callers don't need to know which backend answered.
+
+    The factory lives in app/supabase_repository.py to avoid importing the
+    supabase SDK on the SQLite-only code path.
+    """
+    import os
+    from app.database import IS_POSTGRES
+    if IS_POSTGRES or os.environ.get("SUPABASE_URL"):
+        from app.supabase_repository import get_repository as _supabase_get
+        return _supabase_get()
+
     global _repository
     if _repository is None:
         _repository = CustomerRepository()
