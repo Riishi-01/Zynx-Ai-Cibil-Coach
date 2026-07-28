@@ -37,17 +37,25 @@ PLAN = {
 }
 
 
-def _fragments(payload: dict, size: int = 24) -> list[str]:
-    """Split JSON into small chunks, the way a model would emit it."""
+def _fragments(payload: dict, size: int = 8) -> list[str]:
+    """Split JSON into small chunks, the way a model would emit it.
+
+    Size=8 (down from 24) ensures enough intermediate chunk boundaries to
+    produce multiple distinct valid partial-JSON states, which is required
+    for test_plan_deltas_are_monotonically_more_complete.
+    """
     text = json.dumps(payload)
     return [text[i : i + size] for i in range(0, len(text), size)]
 
 
 def _try_parse_partial(buf: str):
-    """Try to JSON-parse buf, with a closing-brace heuristic for partial JSON.
+    """Try to JSON-parse buf, with a stack-based closing heuristic.
 
-    Mirrors the logic in app/llm_stream._try_parse_partial_json so the test
-    fixtures produce the same stream of partial dicts that the real code does.
+    Uses a proper nesting stack (innermost-first closing) so that partial
+    buffers like '{"a": 1, "b": [{' are closed as '{}]}' rather than the
+    incorrect '}}]' produced by a naive brace-count approach.
+
+    Mirrors the logic in app/llm_stream._try_parse_partial_json.
     """
     import json
 
@@ -58,15 +66,34 @@ def _try_parse_partial(buf: str):
         return json.loads(buf)
     except json.JSONDecodeError:
         pass
-    opens = buf.count("{") - buf.count("}") + buf.count("[") - buf.count("]")
-    if opens <= 0:
+
+    # Stack-based closing: walk the buffer respecting string quoting.
+    stack: list = []
+    in_string = False
+    escape_next = False
+    for ch in buf:
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == "\\" and in_string:
+            escape_next = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == "{":
+            stack.append("}")
+        elif ch == "[":
+            stack.append("]")
+        elif ch in "}]" and stack:
+            stack.pop()
+
+    if not stack:
         return None
-    candidate = (
-        buf
-        + "}" * (buf.count("{") - buf.count("}"))
-        + "]" * (buf.count("[") - buf.count("]")
-        )
-    )
+
+    candidate = buf + "".join(reversed(stack))
     try:
         return json.loads(candidate)
     except json.JSONDecodeError:

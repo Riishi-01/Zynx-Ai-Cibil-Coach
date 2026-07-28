@@ -12,8 +12,8 @@ from app.fact_resolver import ALIASES, DERIVED, UnknownFact, resolve_fact, resol
 from app.precompute import (
     RATE_SHOPPING_WINDOW_DAYS,
     _last_late_index,
-    _period_for_index,
     _shift_month,
+    period_for_index,
     precompute_facts,
 )
 from app.schemas import FactSet
@@ -47,11 +47,11 @@ def test_shift_month_crosses_year_boundary():
 
 def test_period_for_index_maps_last_slot_to_anchor_month():
     """The final history slot is the anchor month, not an earlier one."""
-    assert _period_for_index(AS_OF, 23, 24) == "2026-07"
+    assert period_for_index(AS_OF, 23, 24) == "2026-07"
 
 
 def test_period_for_index_maps_first_slot_23_months_back():
-    assert _period_for_index(AS_OF, 0, 24) == "2024-08"
+    assert period_for_index(AS_OF, 0, 24) == "2024-08"
 
 
 def test_period_for_index_is_not_constant():
@@ -60,7 +60,7 @@ def test_period_for_index_is_not_constant():
     The original implementation returned the anchor month for every index, so
     every late looked like it happened this month.
     """
-    periods = {_period_for_index(AS_OF, i, 24) for i in range(24)}
+    periods = {period_for_index(AS_OF, i, 24) for i in range(24)}
     assert len(periods) == 24, "each index must map to a distinct month"
 
 

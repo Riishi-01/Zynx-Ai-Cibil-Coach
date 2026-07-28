@@ -42,7 +42,7 @@ def _shift_month(anchor: date, months_back: int) -> tuple[int, int]:
     return total // 12, (total % 12) + 1
 
 
-def _period_for_index(anchor: date, index: int, history_len: int) -> str:
+def period_for_index(anchor: date, index: int, history_len: int) -> str:
     """Map a payment_history index to its real calendar month, as "YYYY-MM".
 
     Convention: the LAST element of payment_history is the month of anchor
@@ -163,7 +163,7 @@ def precompute_facts(
         # derived from its index in the history array.
         last_late_idx = _last_late_index(payment_history)
         account_last_late_period[acc_id] = (
-            _period_for_index(as_of_date, last_late_idx, len(payment_history))
+            period_for_index(as_of_date, last_late_idx, len(payment_history))
             if last_late_idx is not None
             else None
         )
@@ -260,7 +260,7 @@ def precompute_facts(
             months_back = (history_len - 1) - last_idx
             if most_recent_late_months_back is None or months_back < most_recent_late_months_back:
                 most_recent_late_months_back = months_back
-                most_recent_late_period = _period_for_index(as_of_date, last_idx, history_len)
+                most_recent_late_period = period_for_index(as_of_date, last_idx, history_len)
 
     has_recent_late_6mo = n_recent_lates > 0
 

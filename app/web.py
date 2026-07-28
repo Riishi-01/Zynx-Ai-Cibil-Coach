@@ -348,5 +348,30 @@ async def analyse_canvas(request: Request) -> CanvasResponse:
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy", "service": "CIBIL Credit Coach"}
+    """Health check endpoint.
+
+    Reports which backend the app is talking to and whether the required env
+    vars are present. Cheap, no DB round-trip — safe to call as a smoke test
+    after every deploy. When `backend == "sqlite"` in production something is
+    wrong (Supabase env vars were not picked up at cold-start).
+    """
+    from app.database import IS_POSTGRES
+
+    supabase_url_set = bool(os.environ.get("SUPABASE_URL"))
+    service_key_set = bool(
+        os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        or os.environ.get("SUPABASE_SECRET_KEY")
+    )
+    openai_set = bool(os.environ.get("OPENAI_API_KEY"))
+    backend = "supabase" if (IS_POSTGRES or supabase_url_set) else "sqlite"
+
+    return {
+        "status": "healthy",
+        "service": "CIBIL Credit Coach",
+        "backend": backend,
+        "env": {
+            "supabase_url_set": supabase_url_set,
+            "supabase_key_set": service_key_set,
+            "openai_key_set": openai_set,
+        },
+    }

@@ -55,10 +55,15 @@ def _try_parse_partial_json(buf: str) -> Optional[dict]:
     """Attempt to parse the accumulated buffer as JSON.
 
     OpenAI streams the JSON object token-by-token; each chunk extends the
-    buffer. We try a full parse first; if that fails we attempt a 'close and
-    parse' heuristic that appends the minimum number of closing braces/brackets
-    needed to make the fragment valid — giving the frontend progressive updates
-    even before the full object arrives.
+    buffer. We try a full parse first; if that fails we use a stack-based
+    heuristic that appends the minimum closing characters in correct nesting
+    order — giving the frontend progressive updates even before the full
+    object arrives.
+
+    A naive brace-count approach (`"}" * opens + "]" * opens`) produces the
+    wrong closing sequence for mixed `{[{` nesting — it would emit `}}}]`
+    instead of the correct `}]}`. The stack tracks insertion order so the
+    closing is always innermost-first.
     """
     buf = buf.strip()
     if not buf:
@@ -70,11 +75,33 @@ def _try_parse_partial_json(buf: str) -> Optional[dict]:
     except json.JSONDecodeError:
         pass
 
-    # Heuristic: balance braces/brackets.
-    opens = buf.count("{") - buf.count("}") + buf.count("[") - buf.count("]")
-    if opens <= 0:
+    # Stack-based closing: walk the buffer respecting string quoting.
+    stack: list[str] = []
+    in_string = False
+    escape_next = False
+    for ch in buf:
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == "\\" and in_string:
+            escape_next = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == "{":
+            stack.append("}")
+        elif ch == "[":
+            stack.append("]")
+        elif ch in "}]" and stack:
+            stack.pop()
+
+    if not stack:
         return None
-    candidate = buf + "}" * (buf.count("{") - buf.count("}")) + "]" * (buf.count("[") - buf.count("]"))
+
+    candidate = buf + "".join(reversed(stack))
     try:
         return json.loads(candidate)
     except json.JSONDecodeError:

@@ -298,5 +298,8 @@ def get_repository():
         return _build_supabase_repository()
 
     # Lazy import so the SQLite path doesn't import the supabase SDK.
-    from app.db import CustomerRepository
+    # Note: this branch is unreachable through app.db.get_repository() (the
+    # canonical entry point dispatches to app.sqlite_repository instead), but
+    # keeping the fallback correct lets tests call this function directly.
+    from app.sqlite_repository import CustomerRepository
     return CustomerRepository()

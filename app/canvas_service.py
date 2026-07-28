@@ -25,7 +25,7 @@ from app.api_schemas import (
     UtilizationView,
 )
 from app.label_service import build_labels_response, labels_response_from, run_pipeline
-from app.precompute import _period_for_index
+from app.precompute import period_for_index
 from app.schemas import FactSet, SanitisedRecord
 from app.template_renderer import (
     TARGET_UTILIZATION,
@@ -215,7 +215,7 @@ def build_payment_heatmap(facts: FactSet, record: SanitisedRecord) -> PaymentHea
 
     cells: list[HeatmapCell] = []
     for index in range(HEATMAP_MONTHS):
-        period = _period_for_index(facts.as_of_date, index, HEATMAP_MONTHS)
+        period = period_for_index(facts.as_of_date, index, HEATMAP_MONTHS)
         cells.append(
             HeatmapCell(
                 period=period,
