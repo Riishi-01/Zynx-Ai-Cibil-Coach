@@ -257,10 +257,20 @@ from app.database import IS_POSTGRES  # noqa: E402  (kept here so the SQLite pat
 
 
 def _build_supabase_repository():
-    """Instantiate SupabaseRepository using the service_role key from env."""
+    """Instantiate SupabaseRepository using the service-role key from env.
+
+    Realtime is disabled explicitly. We use supabase-py only for its
+    PostgREST client (customers, scores, KB tables) — never for websockets.
+    Leaving realtime on creates an inert SyncRealtimeClient whose
+    auto_reconnect background behaviour can produce confusing log noise
+    (and in some Supabase projects with Realtime toggled off, websocket
+    handshake rejections). Setting auto_reconnect=False here short-circuits
+    that side of the client entirely — the SyncRealtimeClient object still
+    exists but never attempts to open a websocket.
+    """
     import os
 
-    from supabase import create_client
+    from supabase import ClientOptions, create_client
 
     url = os.environ.get("SUPABASE_URL")
     # Accept both the classic JWT (SUPABASE_SERVICE_ROLE_KEY) and the new
@@ -275,7 +285,16 @@ def _build_supabase_repository():
             "(SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY). Both must be set "
             "in the environment when DATABASE_URL targets Postgres."
         )
-    return SupabaseRepository(create_client(url, key))
+
+    options = ClientOptions(
+        realtime={
+            "auto_reconnect": False,  # never auto-open websocket
+            "hb_interval": 0,         # never heartbeat
+            "max_retries": 0,         # never retry connect
+            "initial_backoff": 0.0,
+        },
+    )
+    return SupabaseRepository(create_client(url, key, options=options))
 
 
 def get_repository():

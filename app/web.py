@@ -375,3 +375,94 @@ async def health_check():
             "openai_key_set": openai_set,
         },
     }
+
+
+@app.get("/api/diag")
+async def diagnose_gates(pan: str = "ABCPS1234A"):
+    """Exercise the two upstream gates (DB fetch + precompute) end-to-end.
+
+    If /api/canvas returns a hydration but no data, hit this endpoint to
+    see exactly which gate is failing and how long each step takes. Safe to
+    call from any browser — it does not invoke the LLM, does not require
+    Turnstile, and never mutates state.
+
+    Gates:
+      1. customer fetch       (Supabase REST: customers + scores)
+      2. KB load              (Supabase REST: kb_labels + 4 child tables)
+      3. sanitise + precompute (pure Python, deterministic)
+
+    Any failure surfaces as `{"ok": false, "gate": "<name>", "error": "..."}`
+    with the upstream exception class and message so you can fix the right
+    thing instead of guessing.
+    """
+    import time
+
+    timings: dict[str, float] = {}
+    started = time.perf_counter()
+
+    # Gate 1: customer fetch
+    try:
+        t = time.perf_counter()
+        record = fetch_customer_by_pan(pan)
+        timings["fetch_customer_ms"] = round((time.perf_counter() - t) * 1000, 1)
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "gate": "fetch_customer",
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+            "pan": pan,
+            "elapsed_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
+
+    # Gate 2: KB load (caches after first call, so this is also the cache test)
+    try:
+        t = time.perf_counter()
+        from app.kb_loader import get_knowledge_base
+
+        kb = get_knowledge_base()
+        timings["load_kb_ms"] = round((time.perf_counter() - t) * 1000, 1)
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "gate": "load_kb",
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+            "elapsed_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
+
+    # Gate 3: sanitise + precompute
+    try:
+        t = time.perf_counter()
+        sanitised = sanitise_record(record)
+        facts = precompute_facts(sanitised, monthly_income_inr=75000)
+        timings["precompute_ms"] = round((time.perf_counter() - t) * 1000, 1)
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "gate": "precompute",
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+            "elapsed_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
+
+    return {
+        "ok": True,
+        "pan": pan,
+        "customer": {
+            "first_name": record.customer.first_name,
+            "score": record.score.score if record.score else None,
+            "accounts": len(record.accounts),
+            "inquiries": len(record.inquiries),
+            "collections": len(record.collections),
+        },
+        "kb": {"labels": kb.count()},
+        "facts": {
+            "score": facts.score,
+            "overall_utilization": round(facts.overall_utilization, 3),
+            "worst_late_status": facts.worst_late_status,
+            "n_recent_lates": facts.n_recent_lates,
+        },
+        "timings_ms": timings,
+        "elapsed_ms": round((time.perf_counter() - started) * 1000, 1),
+    }

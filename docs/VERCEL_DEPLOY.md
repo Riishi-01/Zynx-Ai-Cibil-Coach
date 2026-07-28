@@ -48,7 +48,48 @@ Current size budget (~111 MB unzipped) is in `api/requirements.txt` docstring �
 
 Layout renders, `/api/analyze` returns no `event: canvas` frame. The frontend is fine; the serverless function is failing silently (no SSE bytes sent).
 
-### 2a. First stop: hit `/api/health`
+### 2a. First stop: hit `/api/health` and `/api/diag`
+
+Two cheap probes that exercise different layers:
+
+```bash
+curl -sS https://<your-app>.vercel.app/api/health | jq
+curl -sS https://<your-app>.vercel.app/api/diag | jq   # exercise the two upstream gates
+```
+
+`/api/diag` runs the **DB fetch + KB load + precompute** pipeline for `ABCPS1234A` (override with `?pan=…`) without invoking the LLM. Healthy output:
+
+```json
+{
+  "ok": true,
+  "customer": { "first_name": "Anjali", "score": 715, "accounts": 4, … },
+  "kb": { "labels": 32 },
+  "facts": { "score": 715, "overall_utilization": 0.572, … },
+  "timings_ms": { "fetch_customer_ms": 360, "load_kb_ms": 710, "precompute_ms": 0.3 },
+  "elapsed_ms": 1070
+}
+```
+
+Failed output names the gate that broke:
+
+```json
+{
+  "ok": false,
+  "gate": "fetch_customer",         // or "load_kb" or "precompute"
+  "error_type": "ConnectError",     // exception class
+  "error": "[Errno 8] nodename nor servname provided, or not known"
+}
+```
+
+Common `gate` → diagnosis mapping:
+
+| `gate` | Common causes |
+|---|---|
+| `fetch_customer` | Wrong `SUPABASE_URL`, bad service-role key, Supabase project paused, RLS rejecting the key |
+| `load_kb` | `kb_labels` / `kb_mitigation_steps` / etc. tables empty or missing — re-run `scripts/import_to_supabase.py` |
+| `precompute` | A deterministic-Python failure — rare, check Vercel runtime logs for the traceback |
+
+### 2b. If `/api/diag` passes but the page is still blank
 
 ```bash
 curl -sS https://<your-app>.vercel.app/api/health | jq
@@ -77,16 +118,16 @@ Diagnostic matrix:
 | `supabase` | `false` | * | * | `SUPABASE_URL` missing. |
 | `supabase` | `true` | `false` | * | Service-role key missing (accepts either `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SECRET_KEY`). |
 | `supabase` | `true` | `true` | `false` | `OPENAI_API_KEY` missing — canvas will still hydrate (deterministic), but the plan LLM call will fail. |
-| `supabase` | `true` | `true` | `true` | Env is fine. Move to §2b. |
+| `supabase` | `true` | `true` | `true` | Env is fine. Move to §2c. |
 
-### 2b. Env is fine but still no canvas → check Supabase data
+### 2c. Env is fine but still no canvas → check Supabase data
 
 ```bash
 # After exporting SUPABASE_URL + a service-role key locally:
 python scripts/verify_supabase_data.py
 ```
 
-If it prints `All row counts match.` → DB is seeded; move to §2c.
+If it prints `All row counts match.` → DB is seeded; move to §2d.
 
 If it errors or shows zero rows → the DB is empty. Seed it:
 
@@ -166,9 +207,10 @@ Both must pass. Then `git push zynx production:main`. After Vercel deploys:
 
 ```bash
 curl -sS https://<your-app>.vercel.app/api/health | jq
+curl -sS https://<your-app>.vercel.app/api/diag | jq    # gates only (no LLM)
 curl -i -X POST https://<your-app>.vercel.app/api/analyze \
   -H 'Content-Type: application/json' \
   -d '{"pan":"ABCPS1234A","income":75000}' | head -3
 ```
 
-Expect `backend: "supabase"`, all envs `set: true`, and an `event: canvas` frame within ~500 ms.
+Expect `backend: "supabase"`, all envs `set: true`, `diag.ok: true`, and an `event: canvas` frame within ~500 ms.
