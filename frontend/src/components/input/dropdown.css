@@ -1,0 +1,106 @@
+/**
+ * Dropdown combobox styling. Builds on the shared `.field` / `.field-input`
+ * styles from input-form.css and adds the listbox popover and caret.
+ */
+
+.dropdown {
+  position: relative;
+}
+
+.dropdown-caret {
+  position: absolute;
+  right: var(--space-4);
+  color: var(--fg-dim);
+  font-size: var(--text-sm);
+  pointer-events: none;
+  transition: transform var(--duration-focus) ease-out;
+}
+
+.dropdown .field-input[aria-expanded='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.15);
+}
+
+.dropdown .field-input[aria-expanded='true'] + .dropdown-caret,
+.field-input-wrap:has(+ .dropdown-listbox) .dropdown-caret {
+  transform: rotate(180deg);
+}
+
+.dropdown-listbox {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  animation: dropdown-reveal var(--duration-focus) ease-out;
+}
+
+@keyframes dropdown-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-option {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-md);
+  color: var(--fg);
+  user-select: none;
+}
+
+.dropdown-option-pan {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.dropdown-option-sep {
+  color: var(--fg-dim);
+}
+
+.dropdown-option-name {
+  color: var(--fg-dim);
+}
+
+.dropdown-option--active {
+  background: rgba(124, 92, 255, 0.12);
+}
+
+.dropdown-option--selected .dropdown-option-pan {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.dropdown-empty {
+  padding: var(--space-3);
+  color: var(--fg-dim);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropdown-listbox {
+    animation: none;
+  }
+  .dropdown-caret {
+    transition: none;
+  }
+}

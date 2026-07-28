@@ -5,6 +5,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CanvasResponse } from '../types';
 import { Analyzer } from './Analyzer';
 
+/**
+ * Drive the PAN dropdown: focus the combobox, choose an option from the
+ * listbox. Mirrors what the user does — open the list, click the row — and
+ * keeps the test resilient to internal combobox state changes.
+ */
+async function pickPan(user: ReturnType<typeof userEvent.setup>, pan: string) {
+  const combo = screen.getByRole('combobox', { name: /pan/i });
+  await user.click(combo);
+  await user.click(screen.getByRole('option', { name: new RegExp(pan) }));
+}
+
 /** Minimal fixture that satisfies the CanvasResponse shape for chart rendering. */
 const MOCK_CANVAS: CanvasResponse = {
   pan_masked: 'ABCPS****A',
@@ -81,19 +92,15 @@ async function flushFetch() {
 
 describe('Analyzer integration', () => {
   beforeEach(() => {
-    // Mock fetch to handle both /api/canvas (from fetchCanvas) and /api/analyze (from ChatPane).
-    // The ChatPane's /api/analyze call needs a ReadableStream SSE response.
+    // Mock fetch for /api/analyze and /api/chat from ChatPane. The canvas
+    // payload now arrives as the first SSE frame (event: canvas) — that's
+    // also the trigger that flips the page into STREAMING and reveals the
+    // canvas pane. No synchronous /api/canvas call is made anymore.
     vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
-      if (url === '/api/canvas') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(MOCK_CANVAS),
-        });
-      }
       if (url === '/api/analyze' || url === '/api/chat') {
-        // Return an SSE stream with canvas + done events (no LLM call simulated).
         const sseBody = [
           `event: canvas\ndata: ${JSON.stringify(MOCK_CANVAS)}\n\n`,
+          `event: plan_delta\ndata: ${JSON.stringify({ current_situation: 'Mocked plan.' })}\n\n`,
           `event: done\ndata: {"ok":true}\n\n`,
         ].join('');
         const encoder = new TextEncoder();
@@ -123,18 +130,18 @@ describe('Analyzer integration', () => {
     expect(screen.queryByLabelText(/chat/i)).not.toBeInTheDocument();
   });
 
-  it('submitting moves to ANALYZED and reveals the chat + canvas panes', async () => {
+  it('submitting moves to STREAMING and reveals the chat + canvas panes on the first SSE frame', async () => {
     const user = userEvent.setup();
     render(<Analyzer />);
 
-    await user.type(screen.getByLabelText(/pan/i), 'ABCPS1234A');
+    await pickPan(user, 'ABCPS1234A');
     await user.type(screen.getByLabelText(/monthly income/i), '75000');
     await user.click(screen.getByRole('button', { name: /get credit analyzed/i }));
 
     await flushFetch();
 
     await waitFor(() => {
-      // ChatPane renders inside the chat section
+      // ChatPane renders inside the chat section.
       expect(screen.getByLabelText(/chat message/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/credit profile canvas/i)).toBeInTheDocument();
     });
@@ -152,7 +159,7 @@ describe('Analyzer integration', () => {
     const user = userEvent.setup();
     render(<Analyzer />);
 
-    await user.type(screen.getByLabelText(/pan/i), 'ABCPS1234A');
+    await pickPan(user, 'ABCPS1234A');
     await user.type(screen.getByLabelText(/monthly income/i), '75000');
     await user.click(screen.getByRole('button', { name: /get credit analyzed/i }));
     await flushFetch();
@@ -162,14 +169,15 @@ describe('Analyzer integration', () => {
 
     expect(screen.getByRole('button', { name: /get credit analyzed/i })).toBeInTheDocument();
     // Back to a clean form, not the previous values.
-    expect(screen.getByLabelText(/pan/i)).toHaveValue('');
+    const combo = screen.getByRole('combobox', { name: /pan/i });
+    expect(combo).toHaveValue('');
   });
 
   it('the canvas toggle flips aria-expanded and the button label without touching chat', async () => {
     const user = userEvent.setup();
     render(<Analyzer />);
 
-    await user.type(screen.getByLabelText(/pan/i), 'ABCPS1234A');
+    await pickPan(user, 'ABCPS1234A');
     await user.type(screen.getByLabelText(/monthly income/i), '75000');
     await user.click(screen.getByRole('button', { name: /get credit analyzed/i }));
     await flushFetch();
@@ -192,7 +200,7 @@ describe('Analyzer integration', () => {
     const user = userEvent.setup();
     render(<Analyzer />);
 
-    await user.type(screen.getByLabelText(/pan/i), 'ABCPS1234A');
+    await pickPan(user, 'ABCPS1234A');
     await user.type(screen.getByLabelText(/monthly income/i), '75000');
     await user.click(screen.getByRole('button', { name: /get credit analyzed/i }));
     await flushFetch();

@@ -4,57 +4,31 @@ import { useReducer, useState } from 'react';
 import { CanvasPane } from '../components/canvas/CanvasPane';
 import { CanvasToggle as CanvasToggleButton } from '../components/canvas/CanvasToggle';
 import { ChatPane } from '../components/chat/ChatPane';
-import { InputForm, type InputFormValues } from '../components/input/InputForm';
+import { InputForm } from '../components/input/InputForm';
 import { InputSummary } from '../components/input/InputSummary';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import type { CanvasResponse } from '../types';
 import { analyzerReducer, INITIAL_STATE } from './analyzerState';
 
 /**
- * Stub for the real analysis call, wired up for real in Task 14 against
- * POST /api/analyze. For now we call the deterministic /api/canvas endpoint
- * so the charts render with real data immediately (no LLM needed). The
- * streaming plan from /api/analyze is wired in Task 14.
- */
-async function fetchCanvas(values: InputFormValues): Promise<CanvasResponse> {
-  const res = await fetch('/api/canvas', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pan: values.pan, income: values.incomeInr }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: 'Request failed' }));
-    throw new Error(body.detail ?? `HTTP ${res.status}`);
-  }
-  return res.json();
-}
-
-/**
- * Top-level state machine: IDLE -> SUBMITTING -> ANALYZED -> CHATTING, with
+ * Top-level state machine: IDLE -> SUBMITTING -> STREAMING -> CHATTING, with
  * an independent canvas-collapsed flag. Children stay dumb — everything
  * here is either reducer state or a callback into the reducer, per SPEC.md
  * §2's "why this shape" note.
+ *
+ * The canvas pane reveals the moment the first SSE frame arrives from
+ * /api/analyze (the `event: canvas` frame). Charts paint as soon as the
+ * payload hydrates; the chat plan streams in alongside.
  */
 export function Analyzer() {
   const [state, dispatch] = useReducer(analyzerReducer, INITIAL_STATE);
   const [canvasData, setCanvasData] = useState<CanvasResponse | null>(null);
   const reducedMotion = useReducedMotion();
 
-  async function handleSubmit(values: InputFormValues) {
-    dispatch({ type: 'SUBMIT', values });
-    try {
-      const canvas = await fetchCanvas(values);
-      setCanvasData(canvas);
-      dispatch({ type: 'ANALYZED' });
-    } catch (err) {
-      dispatch({
-        type: 'SUBMIT_FAILED',
-        error: err instanceof Error ? err.message : 'Something went wrong. Please try again.',
-      });
-    }
-  }
-
-  const isIdle = state.stage === 'IDLE' || state.stage === 'SUBMITTING';
+  // The chat pane mounts as soon as the user submits so it can call
+  // /api/analyze; the first SSE frame from that call (event: canvas) is
+  // what flips the stage from SUBMITTING to STREAMING via STREAM_STARTED.
+  const isIdle = state.stage === 'IDLE';
 
   return (
     <div className="analyzer">
@@ -62,7 +36,11 @@ export function Analyzer() {
         <div className="analyzer-idle">
           <h1 className="analyzer-brand">CIBIL Credit Coach</h1>
           <InputForm
-            onSubmit={handleSubmit}
+            onSubmit={(values) => {
+              dispatch({ type: 'SUBMIT', values });
+              // Canvas + chat hydration kicks off when ChatPane mounts and
+              // dispatches STREAM_STARTED on its first SSE frame.
+            }}
             submitting={state.stage === 'SUBMITTING'}
             reducedMotion={reducedMotion}
           />
@@ -105,9 +83,12 @@ export function Analyzer() {
                 <ChatPane
                   pan={state.values.pan}
                   incomeInr={state.values.incomeInr}
-                  onCanvasReady={(data) => setCanvasData(data)}
+                  onCanvasReady={(data) => {
+                    setCanvasData(data);
+                    dispatch({ type: 'STREAM_STARTED' });
+                  }}
                   onPlanDelta={() => {
-                    if (state.stage === 'ANALYZED') dispatch({ type: 'START_CHAT' });
+                    if (state.stage === 'STREAMING') dispatch({ type: 'START_CHAT' });
                   }}
                 />
               )}

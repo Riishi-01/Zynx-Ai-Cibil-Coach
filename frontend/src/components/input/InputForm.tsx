@@ -2,8 +2,8 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 
 import { isIncomeValid, isPanValid, normalizePan } from '../../lib/validation';
+import { Dropdown } from './Dropdown';
 import { IncomeField, parseIncomeField } from './IncomeField';
-import { PANField } from './PANField';
 
 export interface InputFormValues {
   pan: string;
@@ -60,7 +60,7 @@ export function InputForm({ onSubmit, submitting = false, reducedMotion = false 
       }
     >
       <div className="input-form-fields">
-        <PANField value={pan} onChange={setPan} disabled={submitting} />
+        <Dropdown value={pan} onChange={setPan} disabled={submitting} />
         <IncomeField value={incomeDigits} onChange={setIncomeDigits} disabled={submitting} />
       </div>
 

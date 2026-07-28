@@ -17,15 +17,15 @@ describe('analyzerReducer', () => {
     expect(next.error).toBeNull();
   });
 
-  it('ANALYZED moves SUBMITTING -> ANALYZED', () => {
+  it('STREAM_STARTED moves SUBMITTING -> STREAMING on the first SSE frame', () => {
     const submitting = analyzerReducer(INITIAL_STATE, { type: 'SUBMIT', values: VALUES });
-    const analyzed = analyzerReducer(submitting, { type: 'ANALYZED' });
-    expect(analyzed.stage).toBe('ANALYZED');
-    expect(analyzed.values).toEqual(VALUES); // values survive the transition
+    const streaming = analyzerReducer(submitting, { type: 'STREAM_STARTED' });
+    expect(streaming.stage).toBe('STREAMING');
+    expect(streaming.values).toEqual(VALUES); // values survive the transition
   });
 
-  it('ANALYZED is a no-op outside SUBMITTING', () => {
-    const stillIdle = analyzerReducer(INITIAL_STATE, { type: 'ANALYZED' });
+  it('STREAM_STARTED is a no-op outside SUBMITTING', () => {
+    const stillIdle = analyzerReducer(INITIAL_STATE, { type: 'STREAM_STARTED' });
     expect(stillIdle.stage).toBe('IDLE');
   });
 
@@ -36,21 +36,21 @@ describe('analyzerReducer', () => {
     expect(failed.error).toBe('network error');
   });
 
-  it('START_CHAT moves ANALYZED -> CHATTING', () => {
+  it('START_CHAT moves STREAMING -> CHATTING', () => {
     let state = analyzerReducer(INITIAL_STATE, { type: 'SUBMIT', values: VALUES });
-    state = analyzerReducer(state, { type: 'ANALYZED' });
+    state = analyzerReducer(state, { type: 'STREAM_STARTED' });
     state = analyzerReducer(state, { type: 'START_CHAT' });
     expect(state.stage).toBe('CHATTING');
   });
 
-  it('START_CHAT is a no-op outside ANALYZED', () => {
+  it('START_CHAT is a no-op outside STREAMING', () => {
     const stillIdle = analyzerReducer(INITIAL_STATE, { type: 'START_CHAT' });
     expect(stillIdle.stage).toBe('IDLE');
   });
 
   it('EDIT resets fully back to IDLE from any stage', () => {
     let state = analyzerReducer(INITIAL_STATE, { type: 'SUBMIT', values: VALUES });
-    state = analyzerReducer(state, { type: 'ANALYZED' });
+    state = analyzerReducer(state, { type: 'STREAM_STARTED' });
     state = analyzerReducer(state, { type: 'START_CHAT' });
     state = analyzerReducer(state, { type: 'TOGGLE_CANVAS' }); // dirty canvasCollapsed too
 
@@ -60,11 +60,11 @@ describe('analyzerReducer', () => {
 
   it('TOGGLE_CANVAS flips independently of stage', () => {
     let state = analyzerReducer(INITIAL_STATE, { type: 'SUBMIT', values: VALUES });
-    state = analyzerReducer(state, { type: 'ANALYZED' });
+    state = analyzerReducer(state, { type: 'STREAM_STARTED' });
 
     const collapsed = analyzerReducer(state, { type: 'TOGGLE_CANVAS' });
     expect(collapsed.canvasCollapsed).toBe(true);
-    expect(collapsed.stage).toBe('ANALYZED'); // stage unaffected
+    expect(collapsed.stage).toBe('STREAMING'); // stage unaffected
 
     const expanded = analyzerReducer(collapsed, { type: 'TOGGLE_CANVAS' });
     expect(expanded.canvasCollapsed).toBe(false);
@@ -72,7 +72,7 @@ describe('analyzerReducer', () => {
 
   it('TOGGLE_CANVAS survives into CHATTING', () => {
     let state = analyzerReducer(INITIAL_STATE, { type: 'SUBMIT', values: VALUES });
-    state = analyzerReducer(state, { type: 'ANALYZED' });
+    state = analyzerReducer(state, { type: 'STREAM_STARTED' });
     state = analyzerReducer(state, { type: 'TOGGLE_CANVAS' });
     state = analyzerReducer(state, { type: 'START_CHAT' });
 
@@ -80,17 +80,17 @@ describe('analyzerReducer', () => {
     expect(state.canvasCollapsed).toBe(true);
   });
 
-  it('follows the full documented sequence IDLE -> SUBMITTING -> ANALYZED -> CHATTING', () => {
+  it('follows the full documented sequence IDLE -> SUBMITTING -> STREAMING -> CHATTING', () => {
     const stages: string[] = [INITIAL_STATE.stage];
     let state = INITIAL_STATE;
 
     state = analyzerReducer(state, { type: 'SUBMIT', values: VALUES });
     stages.push(state.stage);
-    state = analyzerReducer(state, { type: 'ANALYZED' });
+    state = analyzerReducer(state, { type: 'STREAM_STARTED' });
     stages.push(state.stage);
     state = analyzerReducer(state, { type: 'START_CHAT' });
     stages.push(state.stage);
 
-    expect(stages).toEqual(['IDLE', 'SUBMITTING', 'ANALYZED', 'CHATTING']);
+    expect(stages).toEqual(['IDLE', 'SUBMITTING', 'STREAMING', 'CHATTING']);
   });
 });

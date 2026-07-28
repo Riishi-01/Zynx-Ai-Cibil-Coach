@@ -1,3 +1,4 @@
+import './components/input/dropdown.css';
 import './components/input/input-form.css';
 import './components/canvas/canvas.css';
 import './components/chat/chat.css';

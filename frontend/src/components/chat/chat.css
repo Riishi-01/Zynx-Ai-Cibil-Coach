@@ -103,6 +103,14 @@
   opacity: 0.5;
 }
 
+/* Hide the user-facing composer textarea — only the LLM-generated analysis
+   messages are shown. The send/stop button (.chat-composer-btn) stays
+   visible. The ChatComposer component stays mounted so existing refs,
+   scrolling, and message-list state are untouched. */
+.chat-composer-input {
+  display: none;
+}
+
 .chat-composer-btn {
   width: 36px;
   height: 36px;

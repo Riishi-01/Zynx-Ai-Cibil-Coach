@@ -1,14 +1,18 @@
 /**
- * The five states the analyzer page moves through. See SPEC.md's master
- * prompt: IDLE -> SUBMITTING -> ANALYZED -> CHATTING -> CANVAS_COLLAPSED.
+ * The states the analyzer page moves through. See SPEC.md's master
+ * prompt: IDLE -> SUBMITTING -> STREAMING -> CHATTING, with CANVAS_COLLAPSED
+ * tracked as an independent flag.
  *
- * CHATTING and CANVAS_COLLAPSED are independent of each other in practice
- * (the user can toggle the canvas while chatting), but SPEC.md presents them
- * as a linear progression, so `stage` models exactly that while
- * `canvasCollapsed` is tracked as its own flag or ivar in AnalyzerState —
- * see the state shape below for how the two combine.
+ * STREAMING replaces the old synchronous ANALYZED step: the canvas pane now
+ * reveals the moment the first SSE frame arrives from /api/analyze (the
+ * `event: canvas` frame sent before any LLM tokens). The chat-stream timing
+ * is driven by the LLM, not by the user, so the user no longer waits for a
+ * deterministic /api/canvas call before seeing charts.
+ *
+ * `START_CHAT` is still reachable from STREAMING — the dispatcher in
+ * Analyzer.tsx sends it once `plan_delta` arrives, mirroring the old flow.
  */
-export type AnalyzerStage = 'IDLE' | 'SUBMITTING' | 'ANALYZED' | 'CHATTING';
+export type AnalyzerStage = 'IDLE' | 'SUBMITTING' | 'STREAMING' | 'CHATTING';
 
 export interface SubmittedValues {
   pan: string;
@@ -18,7 +22,7 @@ export interface SubmittedValues {
 export interface AnalyzerState {
   stage: AnalyzerStage;
   values: SubmittedValues | null;
-  /** Independent of `stage`: the canvas can collapse in ANALYZED or CHATTING. */
+  /** Independent of `stage`: the canvas can collapse in STREAMING or CHATTING. */
   canvasCollapsed: boolean;
   error: string | null;
 }
@@ -32,7 +36,7 @@ export const INITIAL_STATE: AnalyzerState = {
 
 export type AnalyzerAction =
   | { type: 'SUBMIT'; values: SubmittedValues }
-  | { type: 'ANALYZED' }
+  | { type: 'STREAM_STARTED' }
   | { type: 'SUBMIT_FAILED'; error: string }
   | { type: 'START_CHAT' }
   | { type: 'EDIT' } // chip clicked: back to IDLE with the form reopened
@@ -43,16 +47,18 @@ export function analyzerReducer(state: AnalyzerState, action: AnalyzerAction): A
     case 'SUBMIT':
       return { ...state, stage: 'SUBMITTING', values: action.values, error: null };
 
-    case 'ANALYZED':
-      // Only meaningful mid-submission; a stray ANALYZED after EDIT is a no-op.
+    case 'STREAM_STARTED':
+      // First SSE frame received — the canvas is now hydratable. Only
+      // meaningful while still submitting; idempotent if the LLM is fast
+      // and the user has already moved on (no-op outside SUBMITTING).
       if (state.stage !== 'SUBMITTING') return state;
-      return { ...state, stage: 'ANALYZED' };
+      return { ...state, stage: 'STREAMING' };
 
     case 'SUBMIT_FAILED':
       return { ...state, stage: 'IDLE', error: action.error };
 
     case 'START_CHAT':
-      if (state.stage !== 'ANALYZED') return state;
+      if (state.stage !== 'STREAMING') return state;
       return { ...state, stage: 'CHATTING' };
 
     case 'EDIT':
