@@ -28,18 +28,6 @@
   }
 }
 
-/* Ambient brand mark glow (motion #13). Intentionally subtle — this pulses
-   forever, so it must never be the thing a user's eye is drawn to. */
-@keyframes brand-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 12px 0 rgba(124, 92, 255, 0.25);
-  }
-  50% {
-    box-shadow: 0 0 20px 4px rgba(124, 92, 255, 0.4);
-  }
-}
-
 /* Generic fade-up used as the reduced-motion fallback for several transform
    based entrances (headline morph, pane reveal, message-in, pill slide-in). */
 @keyframes fade-up {
@@ -50,15 +38,6 @@
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
   }
 }
 

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 
+import { COPY } from '../../copy';
 import { formatInr } from '../../lib/format';
 
 interface InputSummaryProps {
@@ -34,16 +35,19 @@ export function InputSummary({ pan, incomeInr, onEdit, reducedMotion }: InputSum
               ease: [0.34, 1.56, 0.64, 1], // --ease-overshoot
             }
       }
-      aria-label={`Editing details for PAN ${pan}, income ${formatInr(incomeInr)}. Click to edit.`}
+      aria-label={COPY.summary.editAria(pan, formatInr(incomeInr))}
     >
       <span className="input-summary-chip">
-        <span className="input-summary-label">PAN</span>
+        <span className="input-summary-label">{COPY.summary.panLabel}</span>
         <span className="input-summary-value">{pan}</span>
       </span>
       <span className="input-summary-divider" aria-hidden="true" />
       <span className="input-summary-chip">
         <span className="input-summary-value">{formatInr(incomeInr)}</span>
-        <span className="input-summary-label">/ mo</span>
+        <span className="input-summary-label">{COPY.summary.incomeUnit}</span>
+      </span>
+      <span className="input-summary-edit" aria-hidden="true">
+        ✎
       </span>
     </motion.button>
   );

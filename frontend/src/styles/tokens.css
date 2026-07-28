@@ -11,6 +11,10 @@
   --bg: #0a0c10;
   --bg-elev: #11141a;
   --border: #1f242e;
+  /* Stronger border that clears WCAG AA 3:1 against --bg — used for non-text
+     UI elements that need to be visible at a glance (unfired swatches,
+     no-data heatmap cells). */
+  --border-strong: #4a5260;
   --fg: #e7eaf0;
   --fg-dim: #a8aebc;
   --accent: #7c5cff;
@@ -18,15 +22,6 @@
   --good: #34d399;
   --warn: #f59e0b;
   --bad: #ef4444;
-
-  /* CIBIL band colours, per frontend-charts-spec.md §1.
-     NOTE: these back the score hero / gauge only. Actual band NAMES and score
-     RANGES come from the API's kb_meta-sourced bands, never hardcoded here. */
-  --band-poor: var(--bad);
-  --band-fair: var(--warn);
-  --band-good: var(--good);
-  --band-very-good: var(--accent-2);
-  --band-excellent: var(--accent);
 
   /* Typography */
   --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -68,7 +63,7 @@
   --duration-headline: 500ms;
   --duration-reveal: 450ms;
   --duration-collapse: 350ms;
-  --duration-message: 250ms;
+  --duration-pulse: 1500ms;
   --duration-focus: 150ms;
 
   /* Focus ring */

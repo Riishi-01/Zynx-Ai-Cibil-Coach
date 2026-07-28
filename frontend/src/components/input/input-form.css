@@ -1,6 +1,6 @@
 /**
- * IDLE-state input form: field styling shared by PANField and IncomeField,
- * plus the primary submit button.
+ * IDLE-state input form: field styling shared by the PAN Dropdown and
+ * IncomeField, plus the primary submit button.
  */
 
 .input-form {
@@ -69,7 +69,7 @@
 .field-input:focus-visible {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.15);
+  box-shadow: var(--focus-ring);
 }
 
 .field-input:disabled {
@@ -156,6 +156,41 @@
   box-shadow: none;
 }
 
+.button--primary[aria-busy='true'] {
+  /* Subtle gradient pulse while loading — proves progress is happening.
+     Aligned with the skeleton shimmer (--duration-pulse) so the two
+     background animations stay in sync. */
+  animation: button-pulse var(--duration-pulse) ease-in-out infinite;
+  cursor: progress;
+}
+
+.button-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(10, 12, 16, 0.3);
+  border-top-color: var(--bg);
+  animation: button-spin 0.7s linear infinite;
+  margin-right: var(--space-1);
+  vertical-align: middle;
+}
+
+@keyframes button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes button-pulse {
+  0%, 100% {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 16px rgba(124, 92, 255, 0.25);
+  }
+  50% {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 24px rgba(124, 92, 255, 0.45);
+  }
+}
+
 .button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -164,5 +199,11 @@
 @media (prefers-reduced-motion: reduce) {
   .button--primary:hover:not(:disabled) {
     transform: none;
+  }
+  .button--primary[aria-busy='true'] {
+    animation: none;
+  }
+  .button-spinner {
+    animation: none;
   }
 }

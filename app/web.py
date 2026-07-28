@@ -88,8 +88,10 @@ async def analyze_customer(request: Request):
                         renders charts without waiting on the model.
       2. `plan_delta` — the coaching plan as progressively complete JSON, from
                         JsonOutputParser under .astream().
-      3. `citations`  — figures in the plan traced back to precomputed facts.
-      4. `done`       — terminal.
+      3. `metadata`   — {model, prompt_tokens, completion_tokens} captured from
+                        LangChain's usage_metadata callback on the final AIMessage.
+      4. `citations`  — figures in the plan traced back to precomputed facts.
+      5. `done`       — terminal.
 
     An `error` event is emitted instead of 3/4 if generation fails; the canvas
     has already been delivered by then, so the UI degrades to charts-only.
@@ -117,9 +119,12 @@ async def analyze_customer(request: Request):
 
         plan: dict = {}
         try:
-            async for partial in astream_plan(system_prompt, user_message):
-                plan = partial
-                yield _sse("plan_delta", partial)
+            async for kind, data in astream_plan(system_prompt, user_message):
+                if kind == "plan":
+                    plan = data
+                    yield _sse("plan_delta", data)
+                elif kind == "metadata":
+                    yield _sse("metadata", data)
 
             if plan:
                 citations = cite_plan(plan, facts, fired)

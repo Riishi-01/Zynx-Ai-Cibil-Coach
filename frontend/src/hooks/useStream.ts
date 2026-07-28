@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
-import type { CanvasResponse, PartialCoachPlan } from '../types';
+import type { CanvasResponse, PartialCoachPlan, PlanMetadata } from '../types';
 
 export interface StreamState {
   /** Accumulated markdown text (for /api/chat token events). */
@@ -9,6 +9,8 @@ export interface StreamState {
   plan: PartialCoachPlan | null;
   /** Canvas data delivered as the first SSE event from /api/analyze. */
   canvas: CanvasResponse | null;
+  /** Token-usage metadata delivered after the plan stream completes. */
+  metadata: PlanMetadata | null;
   streaming: boolean;
   error: string | null;
   done: boolean;
@@ -17,6 +19,7 @@ export interface StreamState {
 type SseHandler = {
   onCanvas?: (data: CanvasResponse) => void;
   onPlanDelta?: (data: PartialCoachPlan) => void;
+  onMetadata?: (data: PlanMetadata) => void;
   onToken?: (content: string) => void;
   onDone?: () => void;
   onError?: (message: string) => void;
@@ -33,6 +36,7 @@ export function useStream() {
     text: '',
     plan: null,
     canvas: null,
+    metadata: null,
     streaming: false,
     error: null,
     done: false,
@@ -45,7 +49,15 @@ export function useStream() {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
 
-    setState({ text: '', plan: null, canvas: null, streaming: true, error: null, done: false });
+    setState({
+      text: '',
+      plan: null,
+      canvas: null,
+      metadata: null,
+      streaming: true,
+      error: null,
+      done: false,
+    });
 
     try {
       const res = await fetch(url, {
@@ -99,6 +111,10 @@ export function useStream() {
                 setState((s) => ({ ...s, plan: parsed }));
                 handlers?.onPlanDelta?.(parsed);
                 break;
+              case 'metadata':
+                setState((s) => ({ ...s, metadata: parsed }));
+                handlers?.onMetadata?.(parsed);
+                break;
               case 'token':
                 setState((s) => ({ ...s, text: s.text + (parsed.content ?? '') }));
                 handlers?.onToken?.(parsed.content ?? '');
@@ -145,7 +161,15 @@ export function useStream() {
   }, []);
 
   const reset = useCallback(() => {
-    setState({ text: '', plan: null, canvas: null, streaming: false, error: null, done: false });
+    setState({
+      text: '',
+      plan: null,
+      canvas: null,
+      metadata: null,
+      streaming: false,
+      error: null,
+      done: false,
+    });
   }, []);
 
   return { ...state, send, stop, reset };

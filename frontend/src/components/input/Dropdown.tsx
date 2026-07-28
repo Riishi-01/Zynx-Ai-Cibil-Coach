@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 
+import { COPY } from '../../copy';
 import { CUSTOMERS, type CustomerOption } from '../../data/customers';
 import { isPanValid, normalizePan } from '../../lib/validation';
 
@@ -36,7 +37,7 @@ export function Dropdown({
   onChange,
   disabled = false,
   label = 'PAN',
-  placeholder = 'Search by PAN or first name',
+  placeholder = COPY.dropdown.placeholder,
 }: DropdownProps) {
   const inputId = useId();
   const listboxId = useId();
@@ -45,6 +46,7 @@ export function Dropdown({
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [flipUp, setFlipUp] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -73,6 +75,35 @@ export function Dropdown({
       return Math.min(prev, filtered.length - 1);
     });
   }, [filtered]);
+
+  // Scroll the active descendant into view as the user ArrowDown/ArrowUps
+  // through the list — otherwise the highlight can drift off-screen.
+  useEffect(() => {
+    if (!open) return;
+    const list = listRef.current;
+    if (!list || typeof list.querySelector !== 'function') return;
+    const active = list.querySelector<HTMLElement>('[aria-selected="true"], .dropdown-option--active');
+    // jsdom doesn't implement scrollIntoView; guard the call.
+    if (active && typeof active.scrollIntoView === 'function') {
+      active.scrollIntoView({ block: 'nearest' });
+    }
+  }, [activeIndex, open]);
+
+  // Decide whether to render the listbox above the input when the bottom
+  // edge would clip out of the viewport. Re-evaluated on every open.
+  useEffect(() => {
+    if (!open) {
+      setFlipUp(false);
+      return;
+    }
+    const root = containerRef.current;
+    if (!root) return;
+    const rect = root.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    // 240px is the listbox max-height in dropdown.css.
+    const wouldClip = rect.bottom + 240 + 8 > viewportHeight;
+    setFlipUp(wouldClip);
+  }, [open]);
 
   const closeList = useCallback(() => {
     setOpen(false);
@@ -208,12 +239,12 @@ export function Dropdown({
           ref={listRef}
           id={listboxId}
           role="listbox"
-          className="dropdown-listbox"
+          className={`dropdown-listbox${flipUp ? ' dropdown-listbox--flip' : ''}`}
           aria-label={`${label} options`}
         >
           {filtered.length === 0 ? (
             <li className="dropdown-empty" role="presentation">
-              No matches
+              {COPY.dropdown.empty}
             </li>
           ) : (
             filtered.map((option, index) => {
@@ -249,8 +280,8 @@ export function Dropdown({
 
       <p id={hintId} className="field-hint">
         {value && isPanValid(value)
-          ? `Selected: ${selectedLabel}`
-          : 'Pick a record from the list'}
+          ? COPY.dropdown.hintSelected(selectedLabel)
+          : COPY.dropdown.hintDefault}
       </p>
     </div>
   );

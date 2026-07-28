@@ -43,15 +43,10 @@ export function ChartCard({ title, defaultOpen = true, loading = false, children
 
 /**
  * Shimmer skeleton shown while a chart awaits data.
- * Uses the `skeleton-shimmer` keyframe from animations.css.
+ * Uses the `skeleton-shimmer` keyframe from animations.css, aligned to
+ * `--duration-pulse` so it stays in sync with the submit-button gradient
+ * pulse during STREAMING.
  */
-export function Skeleton({ height = 120 }: { height?: number }) {
-  return (
-    <div
-      className="skeleton"
-      style={{ height }}
-      aria-hidden="true"
-      role="presentation"
-    />
-  );
+function Skeleton() {
+  return <div className="skeleton" style={{ height: 120 }} aria-hidden="true" role="presentation" />;
 }

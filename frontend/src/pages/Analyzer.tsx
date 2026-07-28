@@ -1,13 +1,15 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useReducer, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
 import { CanvasPane } from '../components/canvas/CanvasPane';
 import { CanvasToggle as CanvasToggleButton } from '../components/canvas/CanvasToggle';
 import { ChatPane } from '../components/chat/ChatPane';
 import { InputForm } from '../components/input/InputForm';
 import { InputSummary } from '../components/input/InputSummary';
+import { COPY } from '../copy';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import type { CanvasResponse } from '../types';
+import type { AnalyzerAction, AnalyzerState } from './analyzerState';
 import { analyzerReducer, INITIAL_STATE } from './analyzerState';
 
 /**
@@ -25,6 +27,25 @@ export function Analyzer() {
   const [canvasData, setCanvasData] = useState<CanvasResponse | null>(null);
   const reducedMotion = useReducedMotion();
 
+  // Stage-aware dispatch: holds the latest state in a ref so callbacks fired
+  // long after mount (e.g. `onPlanDelta`) read the current stage instead of
+  // the value captured at mount time.
+  const stateRef = useRef<AnalyzerState>(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+  const dispatchWithState = useCallback((action: AnalyzerAction) => {
+    dispatch(action);
+    // Optimistically reflect the post-dispatch stage for synchronous readers
+    // (e.g. the `onPlanDelta` callback fired by ChatPane in the same tick).
+    // The next render will overwrite via the effect above.
+    if (action.type === 'STREAM_STARTED') stateRef.current = { ...stateRef.current, stage: 'STREAMING' };
+    if (action.type === 'START_CHAT') stateRef.current = { ...stateRef.current, stage: 'CHATTING' };
+    if (action.type === 'SUBMIT') stateRef.current = { ...stateRef.current, stage: 'SUBMITTING', values: action.values };
+    if (action.type === 'SUBMIT_FAILED') stateRef.current = { ...stateRef.current, stage: 'IDLE', error: action.error };
+    if (action.type === 'EDIT') stateRef.current = INITIAL_STATE;
+  }, []);
+
   // The chat pane mounts as soon as the user submits so it can call
   // /api/analyze; the first SSE frame from that call (event: canvas) is
   // what flips the stage from SUBMITTING to STREAMING via STREAM_STARTED.
@@ -34,10 +55,10 @@ export function Analyzer() {
     <div className="analyzer">
       {isIdle ? (
         <div className="analyzer-idle">
-          <h1 className="analyzer-brand">CIBIL Credit Coach</h1>
+          <h1 className="analyzer-brand">{COPY.analyzer.brand}</h1>
           <InputForm
             onSubmit={(values) => {
-              dispatch({ type: 'SUBMIT', values });
+              dispatchWithState({ type: 'SUBMIT', values });
               // Canvas + chat hydration kicks off when ChatPane mounts and
               // dispatches STREAM_STARTED on its first SSE frame.
             }}
@@ -45,9 +66,16 @@ export function Analyzer() {
             reducedMotion={reducedMotion}
           />
           {state.error && (
-            <p className="analyzer-error" role="alert">
-              {state.error}
-            </p>
+            <div className="analyzer-error" role="alert">
+              <p>{state.error}</p>
+              <button
+                type="button"
+                className="analyzer-error-retry"
+                onClick={() => dispatchWithState({ type: 'EDIT' })}
+              >
+                {COPY.error.retry}
+              </button>
+            </div>
           )}
         </div>
       ) : (
@@ -57,19 +85,19 @@ export function Analyzer() {
               <InputSummary
                 pan={state.values.pan}
                 incomeInr={state.values.incomeInr}
-                onEdit={() => dispatch({ type: 'EDIT' })}
+                onEdit={() => dispatchWithState({ type: 'EDIT' })}
                 reducedMotion={reducedMotion}
               />
             )}
             <CanvasToggleButton
               collapsed={state.canvasCollapsed}
-              onToggle={() => dispatch({ type: 'TOGGLE_CANVAS' })}
+              onToggle={() => dispatchWithState({ type: 'TOGGLE_CANVAS' })}
             />
           </header>
 
           {/* Pane reveal (SPEC.md motion #2): opacity 0->1, translateY 12->0,
               450ms --ease-standard. Chat leads at 0ms, canvas follows at
-              80ms — the stagger that makes the reveal read as one sequence
+              140ms — the stagger that makes the reveal read as one sequence
               rather than two things popping in together. */}
           <div className={`analyzer-panes ${state.canvasCollapsed ? 'analyzer-panes--collapsed' : ''}`}>
             <motion.section
@@ -77,7 +105,7 @@ export function Analyzer() {
               initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: reducedMotion ? 0.15 : 0.45, ease: [0.4, 0, 0.2, 1], delay: 0 }}
-              aria-label="Chat"
+              aria-label={COPY.analyzer.chatSection}
             >
               {state.values && (
                 <ChatPane
@@ -85,11 +113,14 @@ export function Analyzer() {
                   incomeInr={state.values.incomeInr}
                   onCanvasReady={(data) => {
                     setCanvasData(data);
-                    dispatch({ type: 'STREAM_STARTED' });
+                    dispatchWithState({ type: 'STREAM_STARTED' });
                   }}
                   onPlanDelta={() => {
-                    if (state.stage === 'STREAMING') dispatch({ type: 'START_CHAT' });
+                    if (stateRef.current.stage === 'STREAMING') {
+                      dispatchWithState({ type: 'START_CHAT' });
+                    }
                   }}
+                  onRetry={() => dispatchWithState({ type: 'EDIT' })}
                 />
               )}
             </motion.section>
@@ -104,7 +135,7 @@ export function Analyzer() {
                   transition={{
                     duration: reducedMotion ? 0.15 : 0.45,
                     ease: [0.4, 0, 0.2, 1],
-                    delay: reducedMotion ? 0 : 0.08,
+                    delay: reducedMotion ? 0 : 0.14,
                   }}
                 >
                   <CanvasPane data={canvasData} />

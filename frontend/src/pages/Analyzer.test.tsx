@@ -101,6 +101,7 @@ describe('Analyzer integration', () => {
         const sseBody = [
           `event: canvas\ndata: ${JSON.stringify(MOCK_CANVAS)}\n\n`,
           `event: plan_delta\ndata: ${JSON.stringify({ current_situation: 'Mocked plan.' })}\n\n`,
+          `event: metadata\ndata: ${JSON.stringify({ model: 'gpt-4o-mini', prompt_tokens: 1234, completion_tokens: 567 })}\n\n`,
           `event: done\ndata: {"ok":true}\n\n`,
         ].join('');
         const encoder = new TextEncoder();
@@ -141,8 +142,10 @@ describe('Analyzer integration', () => {
     await flushFetch();
 
     await waitFor(() => {
-      // ChatPane renders inside the chat section.
-      expect(screen.getByLabelText(/chat message/i)).toBeInTheDocument();
+      // ChatPane renders inside the chat section — the composer send button is the
+      // canonical anchor (the textarea was removed; the assistant message is
+      // the only other thing in the pane).
+      expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument();
       expect(screen.getByLabelText(/credit profile canvas/i)).toBeInTheDocument();
     });
 
@@ -152,7 +155,29 @@ describe('Analyzer integration', () => {
 
     // Charts are rendered with real data from the mock.
     expect(screen.getByText('Good')).toBeInTheDocument(); // band label in ScoreHero
-    expect(screen.getByText('5')).toBeInTheDocument(); // n_fired in LabelsFired count
+    expect(screen.getByText('5')).toBeInTheDocument(); // n_fired in LabelsFired count (inside the canvas pane now)
+  });
+
+  it('renders the model footer with token usage + cost + elapsed time', async () => {
+    const user = userEvent.setup();
+    render(<Analyzer />);
+
+    await pickPan(user, 'ABCPS1234A');
+    await user.type(screen.getByLabelText(/monthly income/i), '75000');
+    await user.click(screen.getByRole('button', { name: /get credit analyzed/i }));
+
+    await flushFetch();
+
+    // The metadata SSE event delivers model + token counts.
+    const footer = await screen.findByLabelText(/analysis footer/i);
+    expect(footer.textContent).toContain('gpt-4o-mini');
+    expect(footer.textContent).toContain('Input');
+    expect(footer.textContent).toContain('1,234');
+    expect(footer.textContent).toContain('Output');
+    expect(footer.textContent).toContain('567');
+    expect(footer.textContent).toContain('$0.0005');
+    // Elapsed time: any positive seconds value with one decimal place.
+    expect(footer.textContent).toMatch(/\d+\.\ds/);
   });
 
   it('clicking the chip returns to IDLE with the form reopened', async () => {
@@ -181,7 +206,7 @@ describe('Analyzer integration', () => {
     await user.type(screen.getByLabelText(/monthly income/i), '75000');
     await user.click(screen.getByRole('button', { name: /get credit analyzed/i }));
     await flushFetch();
-    await screen.findByLabelText(/chat message/i);
+    await screen.findByRole('button', { name: /send message/i });
 
     // The real toggle is inside CanvasPane, labelled "Hide canvas".
     const toggle = screen.getByRole('button', { name: /hide canvas/i });
@@ -193,10 +218,10 @@ describe('Analyzer integration', () => {
       'aria-expanded',
       'false',
     );
-    expect(screen.getByLabelText(/chat message/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument();
   });
 
-  it('after analysis, the chat composer is available for follow-up questions', async () => {
+  it('after analysis, the chat composer send button is rendered', async () => {
     const user = userEvent.setup();
     render(<Analyzer />);
 
@@ -205,7 +230,7 @@ describe('Analyzer integration', () => {
     await user.click(screen.getByRole('button', { name: /get credit analyzed/i }));
     await flushFetch();
 
-    // ChatComposer is rendered with the textarea for follow-up questions.
-    expect(screen.getByLabelText(/chat message/i)).toBeInTheDocument();
+    // ChatComposer renders a single send/stop button (no textarea).
+    expect(screen.getByRole('button', { name: /send message|stop generating/i })).toBeInTheDocument();
   });
 });

@@ -21,8 +21,18 @@ const NO_DATA_COLOR = 'var(--border)';
  * frontend-charts-spec.md §4.
  */
 export function PaymentHeatmap({ data }: PaymentHeatmapProps) {
+  const pct = Math.round(data.pct_on_time * 100);
+  const headlineColor = pct >= 95 ? 'var(--good)' : pct >= 80 ? 'var(--warn)' : 'var(--bad)';
+
   return (
     <div className="heatmap">
+      <div className="heatmap-headline" style={{ color: headlineColor }}>
+        <span className="heatmap-headline-pct">{pct}%</span>
+        <span className="heatmap-headline-detail">
+          on time ({data.months_on_time} of {data.months_total} months)
+        </span>
+      </div>
+
       <div className="heatmap-grid" role="img" aria-label={data.summary}>
         {data.cells.map((cell) => (
           <div

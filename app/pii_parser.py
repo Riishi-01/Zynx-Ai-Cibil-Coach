@@ -30,7 +30,7 @@ def sanitise_record(record: CustomerRecord) -> SanitisedRecord:
     pan_masked = mask_pan(record.customer.pan_card)
     
     # First name optional for privacy; drop it unless needed
-    first_name_opt = None  # Could be record.customer.first_name if templates require it
+    first_name_opt = record.customer.first_name  # Synthetic demo data; safe to expose to LLM
     
     # DOB coarsened to year only (or dropped)
     dob_year_opt = None  # record.customer.dob_year  # Could expose to year only

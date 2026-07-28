@@ -12,12 +12,19 @@ const TREND_COLORS = {
   stable: 'var(--fg-dim)',
 } as const;
 
+const TREND_GLYPHS = {
+  rising: '↑',
+  falling: '↓',
+  stable: '→',
+} as const;
+
 /**
  * 3-point line chart showing score trajectory (frontend-charts-spec.md §2).
- * Color changes by trend direction; annotation below when notable.
+ * Color and delta chip change by trend direction; annotation below when notable.
  */
 export function ScoreTrendChart({ data }: ScoreTrendProps) {
   const color = TREND_COLORS[data.trend as keyof typeof TREND_COLORS] ?? TREND_COLORS.stable;
+  const glyph = TREND_GLYPHS[data.trend as keyof typeof TREND_GLYPHS] ?? '→';
 
   // Filter out null scores so the line doesn't connect through gaps.
   const chartData = data.points.map((p) => ({
@@ -30,8 +37,18 @@ export function ScoreTrendChart({ data }: ScoreTrendProps) {
   const minScore = scores.length ? Math.max(300, Math.min(...scores) - 30) : 300;
   const maxScore = scores.length ? Math.min(900, Math.max(...scores) + 30) : 900;
 
+  const delta = data.change_3mo;
+  const deltaLabel = delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '0';
+  const hasDelta = delta !== 0;
+
   return (
     <div className="score-trend">
+      <div className="score-trend-header">
+        <span className="score-trend-chip" style={{ color, borderColor: color }}>
+          {glyph} {hasDelta ? `${deltaLabel} pts` : 'No change'}
+        </span>
+      </div>
+
       <ResponsiveContainer width="100%" height={100}>
         <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
           <XAxis

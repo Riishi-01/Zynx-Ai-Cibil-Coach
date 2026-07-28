@@ -36,10 +36,15 @@
   font-size: var(--text-base);
 }
 
+/* Assistant bubble mirrors the user bubble's surface treatment — soft bg +
+   radius — with the accent stripe as the differentiator instead of the only
+   structure. */
 .chat-message--assistant {
   align-self: flex-start;
+  background: rgba(255, 255, 255, 0.02);
   border-left: 2px solid var(--accent);
-  padding-left: var(--space-4);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
 }
 
 .chat-message--error {
@@ -60,55 +65,46 @@
   font-size: var(--text-sm);
 }
 
+.chat-empty--centered {
+  flex-direction: column;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.chat-empty button {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--fg);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.chat-empty button:hover {
+  border-color: var(--accent);
+}
+
+.chat-empty button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .streaming-cursor {
   animation: cursor-blink 1s steps(1) infinite;
   color: var(--accent);
   font-weight: 700;
 }
 
-/* Composer */
-
+/* Composer: now just a single send/stop button — the textarea was a leftover
+   from when the user could type follow-up questions. */
 .chat-composer {
   display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
+  align-items: center;
+  justify-content: flex-end;
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--border);
   background: var(--bg);
-}
-
-.chat-composer-input {
-  flex: 1;
-  resize: none;
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-base);
-  color: var(--fg);
-  line-height: 1.5;
-  min-height: 36px;
-  max-height: 200px;
-  overflow-y: auto;
-  transition: border-color var(--duration-focus) ease-out;
-}
-
-.chat-composer-input:focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.15);
-}
-
-.chat-composer-input:disabled {
-  opacity: 0.5;
-}
-
-/* Hide the user-facing composer textarea — only the LLM-generated analysis
-   messages are shown. The send/stop button (.chat-composer-btn) stays
-   visible. The ChatComposer component stays mounted so existing refs,
-   scrolling, and message-list state are untouched. */
-.chat-composer-input {
-  display: none;
 }
 
 .chat-composer-btn {
@@ -191,10 +187,46 @@
   margin-top: var(--space-2);
 }
 
-.plan-followup {
-  font-style: italic;
+/* Model footer — small-caps label/value pills distributed across the row
+   instead of one right-aligned terminal-style line. */
+.model-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-2xs);
   color: var(--fg-dim);
-  font-size: var(--text-sm);
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+.model-footer-pair {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+}
+
+.model-footer-label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--text-2xs);
+  color: var(--fg-dim);
+  opacity: 0.7;
+}
+
+.model-footer-value {
+  font-size: var(--text-xs);
+  color: var(--fg);
+  font-family: var(--font-mono);
+}
+
+.model-footer-sep {
+  width: 1px;
+  height: 12px;
+  background: var(--border);
+  margin: 0 var(--space-1);
 }
 
 @media (prefers-reduced-motion: reduce) {

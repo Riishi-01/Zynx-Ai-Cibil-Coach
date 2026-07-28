@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 
-import { isIncomeValid, isPanValid, normalizePan } from '../../lib/validation';
+import { isIncomeValid, isPanValid, normalizePan, parseIncomeInput } from '../../lib/validation';
+import { COPY } from '../../copy';
 import { Dropdown } from './Dropdown';
-import { IncomeField, parseIncomeField } from './IncomeField';
+import { IncomeField } from './IncomeField';
 
 export interface InputFormValues {
   pan: string;
@@ -40,7 +41,7 @@ export function InputForm({ onSubmit, submitting = false, reducedMotion = false 
     event.preventDefault();
     if (!canSubmit) return;
 
-    const incomeInr = parseIncomeField(incomeDigits);
+    const incomeInr = parseIncomeInput(incomeDigits);
     if (incomeInr === null) return;
 
     onSubmit({ pan: normalizePan(pan), incomeInr });
@@ -70,7 +71,8 @@ export function InputForm({ onSubmit, submitting = false, reducedMotion = false 
         disabled={!canSubmit}
         aria-busy={submitting}
       >
-        {submitting ? 'Analysing…' : 'Get Credit Analyzed'}
+        {submitting && <span className="button-spinner" aria-hidden="true" />}
+        {submitting ? COPY.form.submitting : COPY.form.submit}
       </button>
     </motion.form>
   );

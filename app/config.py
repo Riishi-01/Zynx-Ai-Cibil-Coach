@@ -63,7 +63,7 @@ LABEL_KB_PATH = DATA_DIR / "label_kb.json"
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.3"))
 LLM_TIMEOUT_SECONDS = int(os.getenv("LLM_TIMEOUT_SECONDS", "30"))
-LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "1000"))
+LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "1100"))
 
 # LangSmith (optional)
 LANGSMITH_ENABLED = bool(os.getenv("LANGSMITH_API_KEY"))

@@ -215,9 +215,19 @@ export interface ChatHistoryTurn {
 // Mirrors the `event: <name>\ndata: <json>` frames emitted by
 // app/web.py's _sse() helper for POST /api/analyze and /api/chat.
 
+export interface PlanMetadata {
+  /** Model id returned by LangChain's response_metadata.model_name. */
+  model: string;
+  /** Input (prompt) tokens captured from usage_metadata.input_tokens. */
+  prompt_tokens: number;
+  /** Output (completion) tokens captured from usage_metadata.output_tokens. */
+  completion_tokens: number;
+}
+
 export type AnalyzeSseEvent =
   | { event: 'canvas'; data: CanvasResponse }
   | { event: 'plan_delta'; data: PartialCoachPlan }
+  | { event: 'metadata'; data: PlanMetadata }
   | { event: 'citations'; data: { citations: Citation[] } }
   | { event: 'done'; data: { ok: true } }
   | { event: 'error'; data: { message: string } };

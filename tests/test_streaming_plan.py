@@ -21,6 +21,8 @@ from app.prompt_builder import (
 )
 
 # A plausible plan, streamed in fragments to exercise partial JSON parsing.
+# Mirrors the 3-field output schema (current_situation, top_actions,
+# what_to_avoid) — follow_up_question was dropped in v2.
 PLAN = {
     "current_situation": "Your utilization is 96% and you have a 90+ day late.",
     "top_actions": [
@@ -32,7 +34,6 @@ PLAN = {
         }
     ],
     "what_to_avoid": ["Do not close the maxed cards", "Do not apply for new credit"],
-    "follow_up_question": "Would you like a month-by-month paydown schedule?",
 }
 
 
@@ -64,7 +65,11 @@ class FakeStreamingModel:
 
 @pytest.fixture
 def mock_plan_stream(monkeypatch):
-    """Patch astream_plan to yield progressively complete plan objects."""
+    """Patch astream_plan to yield (kind, payload) tuples.
+
+    Mirrors the real contract: progressively-complete plan dicts, then one
+    final ('metadata', {model, prompt_tokens, completion_tokens}) tuple.
+    """
     from app import web
 
     async def fake_astream_plan(system_prompt, user_message, model=None):
@@ -79,7 +84,41 @@ def mock_plan_stream(monkeypatch):
             except Exception:
                 continue
             if isinstance(partial, dict):
-                yield partial
+                yield ("plan", partial)
+
+        # Mirror the real callback that captures LangChain's usage_metadata.
+        yield (
+            "metadata",
+            {
+                "model": "gpt-4o-mini",
+                "prompt_tokens": 1234,
+                "completion_tokens": 567,
+            },
+        )
+
+    monkeypatch.setattr(web, "astream_plan", fake_astream_plan)
+    return fake_astream_plan
+
+
+@pytest.fixture
+def mock_plan_stream_no_metadata(monkeypatch):
+    """Variant of mock_plan_stream with no metadata frame — simulates a model
+    that doesn't surface usage_metadata (older API responses)."""
+    from app import web
+
+    async def fake_astream_plan(system_prompt, user_message, model=None):
+        from langchain_core.output_parsers import JsonOutputParser
+
+        parser = JsonOutputParser()
+        buffer = ""
+        for fragment in _fragments(PLAN):
+            buffer += fragment
+            try:
+                partial = parser.parse(buffer)
+            except Exception:
+                continue
+            if isinstance(partial, dict):
+                yield ("plan", partial)
 
     monkeypatch.setattr(web, "astream_plan", fake_astream_plan)
     return fake_astream_plan
@@ -157,6 +196,130 @@ def test_system_prompt_carries_spec_latex_rules():
 def test_chat_prompt_shares_the_same_rules():
     assert "300-900" in CHAT_SYSTEM_PROMPT
     assert "$..$" in CHAT_SYSTEM_PROMPT
+
+
+# ---------------------------------------------------------------- Maya persona --
+
+
+def test_system_prompt_declares_maya_persona():
+    """The plan-mode prompt must declare Maya's persona verbatim."""
+    assert "Maya" in SYSTEM_PROMPT
+    assert "CFP-certified credit counselor" in SYSTEM_PROMPT
+    assert "15 years" in SYSTEM_PROMPT
+    assert "2,000+" in SYSTEM_PROMPT
+
+
+def test_system_prompt_carries_scope_redirect():
+    """Maya must redirect non-credit questions with the canonical clause."""
+    assert "I'm your credit coach" in SYSTEM_PROMPT
+    assert "you'd want a CFP" in SYSTEM_PROMPT
+    assert "do NOT advise on" in SYSTEM_PROMPT
+    # Specific out-of-scope topics called out.
+    for topic in ("invest", "career", "discretionary", "housing", "tax"):
+        assert topic.lower() in SYSTEM_PROMPT.lower(), f"missing scope topic: {topic}"
+
+
+def test_system_prompt_states_debt_framework():
+    """Modified avalanche + APR midpoints + 70% income rule + 70/20/10 split."""
+    assert "modified avalanche" in SYSTEM_PROMPT.lower() or "DEBT MANAGEMENT FRAMEWORK" in SYSTEM_PROMPT
+    # APR midpoints for the four core loan types.
+    assert "39%" in SYSTEM_PROMPT  # credit card
+    assert "13.5%" in SYSTEM_PROMPT  # personal loan
+    assert "70% of surplus" in SYSTEM_PROMPT  # allocation split
+    # 70% income survivability rule.
+    assert "70% of income" in SYSTEM_PROMPT
+    # Three plan types.
+    assert "AGGRESSIVE PAYDOWN" in SYSTEM_PROMPT
+    assert "CARRIED-FORWARD" in SYSTEM_PROMPT
+    assert "MINIMUM PAYMENT PLAN" in SYSTEM_PROMPT
+
+
+def test_system_prompt_lists_all_7_banned_actions():
+    """Each banned-action clause must appear verbatim in the prompt."""
+    banned_clauses = [
+        "Cash withdrawals from credit cards",
+        "Closing the oldest credit card",
+        "Paying collections past the 7-year",
+        "Paying down a card that is 30+ days overdue",
+        "New debt to pay old debt",
+        "Balance transfer cards",
+        "Numbers not in the customer facts",
+    ]
+    for clause in banned_clauses:
+        assert clause in SYSTEM_PROMPT, f"missing banned-action clause: {clause!r}"
+
+
+def test_system_prompt_lists_all_7_label_adaptations():
+    """Each Maya label adaptation must appear as an explicit rule."""
+    adaptations = [
+        "Disputable Collection",
+        "Collection Past SOL",
+        "Extreme Thin File",
+        "Bankruptcy Filed",
+        "Severe DTI",
+        "Score Falling",
+        "Zero Utilization Paradox",
+    ]
+    for label in adaptations:
+        assert label in SYSTEM_PROMPT, f"missing label adaptation: {label!r}"
+
+
+def test_system_prompt_includes_crisis_mode_block():
+    """CRISIS MODE must be a labelled section with the 6 required rules."""
+    assert "CRISIS MODE" in SYSTEM_PROMPT
+    assert "MINIMUM PAYMENT PLAN" in SYSTEM_PROMPT
+    assert "hardship plan" in SYSTEM_PROMPT
+    assert "RBI-listed credit counselor" in SYSTEM_PROMPT
+    assert "Do NOT recommend new debt to pay old debt" in SYSTEM_PROMPT
+
+
+def test_system_prompt_enforces_300_to_400_word_cap():
+    """The persona section must state the 300–400-word target."""
+    assert "300" in SYSTEM_PROMPT and "400" in SYSTEM_PROMPT
+
+
+def test_system_prompt_carries_citation_discipline():
+    """Every claim must trace to a slot's specifics."""
+    assert "specifics.pay_cents" in SYSTEM_PROMPT
+    assert "specifics.creditor_name" in SYSTEM_PROMPT
+    assert "specifics.target_utilization" in SYSTEM_PROMPT
+    assert "staleness_warning" in SYSTEM_PROMPT
+
+
+def test_system_prompt_tone_guidance():
+    """Maya's tone rules — warm, first name once, plain English."""
+    assert "Warm, supportive" in SYSTEM_PROMPT
+    assert "first name" in SYSTEM_PROMPT.lower()
+    assert "Plain English" in SYSTEM_PROMPT
+
+
+def test_system_prompt_requests_three_field_json_output():
+    """Output schema must list the 3 required fields (no follow_up_question)."""
+    for field in ("current_situation", "top_actions", "what_to_avoid"):
+        assert field in SYSTEM_PROMPT, f"output spec missing field: {field!r}"
+    # The prompt must instruct the model NOT to emit follow_up_question.
+    assert "Do NOT include a follow_up_question" in SYSTEM_PROMPT
+
+
+def test_chat_prompt_carries_maya_scope_guardrails():
+    """The chat prompt must carry the same scope redirect and hard rules."""
+    assert "Maya" in CHAT_SYSTEM_PROMPT
+    assert "I'm your credit coach" in CHAT_SYSTEM_PROMPT
+    assert "you'd want a CFP" in CHAT_SYSTEM_PROMPT
+    # Banned-action rules must carry over to chat mode.
+    for clause in (
+        "Cash withdrawals from credit cards",
+        "Closing the oldest credit card",
+        "New debt to pay old debt",
+        "Balance transfer cards",
+    ):
+        assert clause in CHAT_SYSTEM_PROMPT, f"chat prompt missing clause: {clause!r}"
+
+
+def test_chat_prompt_drops_framework_specifics():
+    """Framework/label-adaptation blocks belong to plan-mode, not chat-mode."""
+    assert "DEBT MANAGEMENT FRAMEWORK" not in CHAT_SYSTEM_PROMPT
+    assert "LABEL ADAPTATIONS" not in CHAT_SYSTEM_PROMPT
 
 
 def test_facts_block_contains_only_supplied_numbers(seeded_db):
@@ -264,8 +427,42 @@ def test_plan_deltas_are_monotonically_more_complete(client, mock_plan_stream):
 
     final = deltas[-1]
     assert final["current_situation"] == PLAN["current_situation"]
-    assert final["follow_up_question"] == PLAN["follow_up_question"]
     CoachPlan.model_validate(final)
+
+
+def test_metadata_event_reports_token_usage(client, mock_plan_stream):
+    """After the plan stream completes, a metadata event carries token counts."""
+    response = client.post("/api/analyze", json={"pan": "BCDRM2345B", "income": 40000})
+    events = dict(_parse_sse(response.text))
+
+    assert "metadata" in events, "expected metadata event after plan_delta frames"
+    md = events["metadata"]
+    assert md["model"] == "gpt-4o-mini"
+    assert md["prompt_tokens"] == 1234
+    assert md["completion_tokens"] == 567
+
+
+def test_metadata_event_emitted_after_plan_deltas(client, mock_plan_stream):
+    """The metadata event lands AFTER all plan_delta frames and BEFORE done."""
+    response = client.post("/api/analyze", json={"pan": "BCDRM2345B", "income": 40000})
+    names = [name for name, _ in _parse_sse(response.text)]
+
+    last_plan_idx = max(i for i, n in enumerate(names) if n == "plan_delta")
+    md_idx = names.index("metadata")
+    done_idx = names.index("done")
+    assert last_plan_idx < md_idx < done_idx
+
+
+def test_metadata_event_omitted_when_no_usage_captured(client, mock_plan_stream_no_metadata):
+    """If the chain emits no metadata, the stream must not invent one."""
+    response = client.post("/api/analyze", json={"pan": "BCDRM2345B", "income": 40000})
+    events = dict(_parse_sse(response.text))
+
+    assert "metadata" not in events
+    # plan + canvas + done still all flow.
+    assert "canvas" in events
+    assert "plan_delta" in events
+    assert "done" in events
 
 
 def test_citations_event_references_real_facts(client, mock_plan_stream):

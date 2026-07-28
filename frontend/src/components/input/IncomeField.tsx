@@ -1,7 +1,8 @@
 import { useId, useState } from 'react';
 
+import { COPY } from '../../copy';
 import { formatIncomeInput } from '../../lib/format';
-import { parseIncomeInput, validateIncome } from '../../lib/validation';
+import { validateIncome } from '../../lib/validation';
 
 interface IncomeFieldProps {
   /** Raw digits only, e.g. "75000" — the parent owns the canonical value. */
@@ -26,6 +27,9 @@ export function IncomeField({ value, onChange, disabled }: IncomeFieldProps) {
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const digitsOnly = event.target.value.replace(/[^\d]/g, '');
+    // Mark touched on first keystroke so the user sees validation feedback
+    // as they type, not only after they tab out of the field.
+    if (!touched) setTouched(true);
     onChange(digitsOnly);
   }
 
@@ -34,20 +38,18 @@ export function IncomeField({ value, onChange, disabled }: IncomeFieldProps) {
   const hint = (): string => {
     switch (validity) {
       case 'too_low':
-        return 'Income must be greater than zero';
+        return COPY.income.hintTooLow;
       case 'too_high':
-        return 'That number looks too large — check for extra digits';
-      case 'not_a_number':
-        return 'Enter a whole number';
+        return COPY.income.hintTooHigh;
       default:
-        return 'Monthly income, e.g. ₹75,000';
+        return COPY.income.hintDefault;
     }
   };
 
   return (
     <div className="field">
       <label htmlFor={inputId} className="field-label">
-        Monthly income
+        {COPY.income.label}
       </label>
       <div className="field-input-wrap">
         <span className="field-prefix" aria-hidden="true">
@@ -59,7 +61,7 @@ export function IncomeField({ value, onChange, disabled }: IncomeFieldProps) {
           type="text"
           inputMode="numeric"
           autoComplete="off"
-          placeholder="75,000"
+          placeholder={COPY.income.placeholder}
           value={displayValue}
           onChange={handleChange}
           onBlur={() => setTouched(true)}
@@ -67,15 +69,15 @@ export function IncomeField({ value, onChange, disabled }: IncomeFieldProps) {
           aria-invalid={showError}
           aria-describedby={hintId}
         />
+        {showError && (
+          <span className="field-icon field-icon--invalid" aria-hidden="true">
+            ✗
+          </span>
+        )}
       </div>
       <p id={hintId} className="field-hint" role={showError ? 'alert' : undefined}>
         {hint()}
       </p>
     </div>
   );
-}
-
-/** The parsed integer value, or null while invalid/empty — for the parent's submit gate. */
-export function parseIncomeField(value: string): number | null {
-  return parseIncomeInput(value);
 }
