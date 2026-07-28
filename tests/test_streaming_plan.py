@@ -43,24 +43,34 @@ def _fragments(payload: dict, size: int = 24) -> list[str]:
     return [text[i : i + size] for i in range(0, len(text), size)]
 
 
-class FakeStreamingModel:
-    """Stands in for ChatOpenAI in a LangChain chain.
+def _try_parse_partial(buf: str):
+    """Try to JSON-parse buf, with a closing-brace heuristic for partial JSON.
 
-    Implements the minimum for `model | parser` piping: astream() yielding
-    AIMessageChunk objects that the output parsers can consume.
+    Mirrors the logic in app/llm_stream._try_parse_partial_json so the test
+    fixtures produce the same stream of partial dicts that the real code does.
     """
+    import json
 
-    def __init__(self, chunks: list[str]):
-        self._chunks = chunks
-
-    def __or__(self, parser):
-        from langchain_core.runnables import RunnableGenerator
-
-        async def generate(inputs):
-            for chunk in self._chunks:
-                yield chunk
-
-        return RunnableGenerator(generate) | parser
+    buf = buf.strip()
+    if not buf:
+        return None
+    try:
+        return json.loads(buf)
+    except json.JSONDecodeError:
+        pass
+    opens = buf.count("{") - buf.count("}") + buf.count("[") - buf.count("]")
+    if opens <= 0:
+        return None
+    candidate = (
+        buf
+        + "}" * (buf.count("{") - buf.count("}"))
+        + "]" * (buf.count("[") - buf.count("]")
+        )
+    )
+    try:
+        return json.loads(candidate)
+    except json.JSONDecodeError:
+        return None
 
 
 @pytest.fixture
@@ -73,20 +83,16 @@ def mock_plan_stream(monkeypatch):
     from app import web
 
     async def fake_astream_plan(system_prompt, user_message, model=None):
-        from langchain_core.output_parsers import JsonOutputParser
-
-        parser = JsonOutputParser()
         buffer = ""
+        last_emitted = None
         for fragment in _fragments(PLAN):
             buffer += fragment
-            try:
-                partial = parser.parse(buffer)
-            except Exception:
-                continue
-            if isinstance(partial, dict):
+            partial = _try_parse_partial(buffer)
+            if isinstance(partial, dict) and partial != last_emitted:
+                last_emitted = partial
                 yield ("plan", partial)
 
-        # Mirror the real callback that captures LangChain's usage_metadata.
+        # Mirror the real metadata frame.
         yield (
             "metadata",
             {
@@ -107,17 +113,13 @@ def mock_plan_stream_no_metadata(monkeypatch):
     from app import web
 
     async def fake_astream_plan(system_prompt, user_message, model=None):
-        from langchain_core.output_parsers import JsonOutputParser
-
-        parser = JsonOutputParser()
         buffer = ""
+        last_emitted = None
         for fragment in _fragments(PLAN):
             buffer += fragment
-            try:
-                partial = parser.parse(buffer)
-            except Exception:
-                continue
-            if isinstance(partial, dict):
+            partial = _try_parse_partial(buffer)
+            if isinstance(partial, dict) and partial != last_emitted:
+                last_emitted = partial
                 yield ("plan", partial)
 
     monkeypatch.setattr(web, "astream_plan", fake_astream_plan)
