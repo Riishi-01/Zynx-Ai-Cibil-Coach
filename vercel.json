@@ -10,14 +10,39 @@
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.py" },
-    { "source": "/assets/(.*)", "destination": "/assets/$1" },
-    { "source": "/(.*\\.(?:js|css|svg|png|ico|woff2?|map))", "destination": "/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/:path*", "destination": "/api/index.py" },
+    { "source": "/assets/:path*", "destination": "/assets/$1" },
+    { "source": "/:path*.js", "destination": "/$1" },
+    { "source": "/:path*.css", "destination": "/$1" },
+    { "source": "/:path*.svg", "destination": "/$1" },
+    { "source": "/:path*.png", "destination": "/$1" },
+    { "source": "/:path*.ico", "destination": "/$1" },
+    { "source": "/:path*.woff", "destination": "/$1" },
+    { "source": "/:path*.woff2", "destination": "/$1" },
+    { "source": "/:path*.map", "destination": "/$1" },
+    { "source": "/:path*", "destination": "/index.html" }
   ],
   "headers": [
     {
-      "source": "/(.*)\\.(?:js|css|woff2?)",
+      "source": "/:path*.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/:path*.css",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/:path*.woff",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/:path*.woff2",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
