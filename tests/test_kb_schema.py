@@ -31,35 +31,35 @@ CUSTOMER_TABLES = [
 
 
 def test_kb_tables_exist(seeded_db):
-    from app.database import engine
+    from app.database import _get_engine
 
-    tables = set(inspect(engine).get_table_names())
+    tables = set(inspect(_get_engine()).get_table_names())
     missing = [t for t in KB_TABLES if t not in tables]
     assert not missing, f"missing KB tables: {missing}"
 
 
 def test_customer_tables_untouched(seeded_db):
     """The KB migration is purely additive."""
-    from app.database import engine
+    from app.database import _get_engine
 
-    tables = set(inspect(engine).get_table_names())
+    tables = set(inspect(_get_engine()).get_table_names())
     missing = [t for t in CUSTOMER_TABLES if t not in tables]
     assert not missing, f"customer tables disappeared: {missing}"
 
 
 def test_customer_row_count_still_23(seeded_db):
-    from app.database import engine
+    from app.database import _get_engine
 
-    with engine.connect() as conn:
+    with _get_engine().connect() as conn:
         count = conn.execute(text("SELECT COUNT(*) FROM customers")).scalar()
     assert count == 23, f"expected 23 customers, found {count}"
 
 
 def test_kb_labels_columns(seeded_db):
     """kb_labels carries every field the coaching layer needs."""
-    from app.database import engine
+    from app.database import _get_engine
 
-    cols = {c["name"] for c in inspect(engine).get_columns("kb_labels")}
+    cols = {c["name"] for c in inspect(_get_engine()).get_columns("kb_labels")}
     expected = {
         "label_id",
         "display_name",

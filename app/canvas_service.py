@@ -42,32 +42,38 @@ HEATMAP_MONTHS = 24
 def load_bands() -> list[BandRange]:
     """Read the CIBIL bands from kb_meta, falling back to config.
 
-    The KB stores them as {"Good": "700-749", ...}.
+    The KB stores them as {"Good": "700-749", ...}. On the Postgres path the
+    kb_meta table is unreachable via SQLAlchemy (Supabase uses the supabase-py
+    REST client); we go straight to the config constant, which carries the
+    same values.
     """
     from app.config import CIBIL_BANDS
-    from app.database import get_db_session
-    from app.models import KBMetaModel
-
-    session = get_db_session()
-    try:
-        row = session.query(KBMetaModel).filter_by(key="cibil_bands").first()
-        raw = row.value if row else None
-    finally:
-        session.close()
+    from app.database import IS_POSTGRES
 
     bands: list[BandRange] = []
 
-    if isinstance(raw, dict):
-        for name, span in raw.items():
-            try:
-                low, high = str(span).split("-")
-                bands.append(BandRange(name=name, min_score=int(low), max_score=int(high)))
-            except (ValueError, AttributeError):
-                continue
+    if not IS_POSTGRES:
+        # SQLite path: read from kb_meta via SQLAlchemy.
+        from app.database import get_db_session
+        from app.models import KBMetaModel
+
+        session = get_db_session()
+        try:
+            row = session.query(KBMetaModel).filter_by(key="cibil_bands").first()
+            raw = row.value if row else None
+        finally:
+            session.close()
+
+        if isinstance(raw, dict):
+            for name, span in raw.items():
+                try:
+                    low, high = str(span).split("-")
+                    bands.append(BandRange(name=name, min_score=int(low), max_score=int(high)))
+                except (ValueError, AttributeError):
+                    continue
 
     if not bands:
-        # kb_meta missing or malformed: fall back to the config constant, which
-        # carries the same values.
+        # kb_meta missing, malformed, or on Postgres — fall back to config.
         bands = [
             BandRange(name=name, min_score=low, max_score=high)
             for name, (low, high) in CIBIL_BANDS.items()

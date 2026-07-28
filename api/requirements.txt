@@ -2,6 +2,11 @@
 # runtime image; the runtime ignores the project-root requirements.txt.
 # Versions match the project-root requirements.txt so the function behaves
 # identically to local dev.
+#
+# psycopg[binary] is intentionally NOT listed here — it's only used by
+# scripts/apply_supabase_schema.py for the one-shot DDL migration, and
+# pulls in ~16 MB of binary wheels. The runtime uses supabase-py over the
+# REST API instead. See requirements-dev.txt for the migration-script dep.
 
 pydantic==2.12.3
 pyyaml==6.0.3
@@ -11,7 +16,6 @@ langchain-openai==0.2.10
 sqlalchemy==2.0.35
 fastapi==0.115.0
 openai==1.109.1
-psycopg[binary]>=3.3.0
 supabase>=2.20.0
 websockets>=13.0
 httpx==0.27.2

@@ -16,8 +16,6 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from sqlalchemy.orm import selectinload
-
 from app.schemas import KBEntry, KBSource, LabelCategory, LabelSeverity, KBUnavailable
 from app.config import LABEL_KB_PATH
 
@@ -38,8 +36,12 @@ class KnowledgeBase:
         """
         # Imported here to keep this module importable without a live database
         # (scripts and tests that only parse JSON do not need an engine).
+        # SQLAlchemy's selectinload is only used here, on the SQLite path; the
+        # production (Supabase) path goes through load_from_supabase() and never
+        # touches this branch.
         from app.database import get_db_session
         from app.models import KBLabelModel
+        from sqlalchemy.orm import selectinload
 
         session = get_db_session()
         try:

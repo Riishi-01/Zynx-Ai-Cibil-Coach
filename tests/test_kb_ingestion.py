@@ -138,12 +138,12 @@ def test_kb_meta_bands_match_config():
 def test_seed_is_idempotent_with_reset(seeded_db):
     """Re-running with --reset leaves exactly 32 labels, not 64."""
     from app.models import KBLabelModel
-    from app.database import SessionLocal
+    from app.database import _get_session_factory
     from scripts.seed_kb import seed_kb
 
     seed_kb(reset=True, quiet=True)
 
-    session = SessionLocal()
+    session = _get_session_factory()()
     try:
         assert session.query(KBLabelModel).count() == 32
     finally:

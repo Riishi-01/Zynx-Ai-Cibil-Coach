@@ -56,9 +56,11 @@ def _assert_not_real_db(url: str) -> None:
 @pytest.fixture(scope="session", autouse=True)
 def guard_real_database():
     """Assert the engine is bound to the throwaway database, before any test."""
-    from app.database import DATABASE_URL, engine
+    from app.database import DATABASE_URL, _get_engine
 
     _assert_not_real_db(DATABASE_URL)
+    # Trigger lazy engine construction so we can read its URL.
+    engine = _get_engine()
     _assert_not_real_db(str(engine.url))
     yield
     # And confirm nothing repointed it mid-run.
@@ -106,9 +108,9 @@ def seeded_db() -> str:
 @pytest.fixture
 def db_session(seeded_db):
     """A session against the throwaway seeded database."""
-    from app.database import SessionLocal
+    from app.database import _get_session_factory
 
-    session = SessionLocal()
+    session = _get_session_factory()()
     try:
         yield session
     finally:
