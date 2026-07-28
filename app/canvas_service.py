@@ -42,17 +42,28 @@ HEATMAP_MONTHS = 24
 def load_bands() -> list[BandRange]:
     """Read the CIBIL bands from kb_meta, falling back to config.
 
-    The KB stores them as {"Good": "700-749", ...}. On the Postgres path the
-    kb_meta table is unreachable via SQLAlchemy (Supabase uses the supabase-py
-    REST client); we go straight to the config constant, which carries the
-    same values.
+    The KB stores them as {"Good": "700-749", ...}. On Supabase (whether
+    reached via DATABASE_URL=postgresql://… or via SUPABASE_URL alone on
+    Vercel) the kb_meta table is unreachable via SQLAlchemy — Supabase uses
+    the supabase-py REST client — so we skip the SQLite attempt entirely
+    and fall through to the config constant, which carries the same values.
+
+    The bug this prevents: when only SUPABASE_URL is set on Vercel
+    (DATABASE_URL is unset, so IS_POSTGRES=False and IS_SQLITE=True), the
+    SQLite branch opened cibil_coach.db — a file excluded from the Vercel
+    bundle by `*.db` in excludeFiles — and queried kb_meta, raising
+    OperationalError and turning /api/canvas and /api/analyze into HTTP 500s.
     """
+    import os
+
     from app.config import CIBIL_BANDS
     from app.database import IS_POSTGRES
 
     bands: list[BandRange] = []
 
-    if not IS_POSTGRES:
+    supabase_active = IS_POSTGRES or bool(os.environ.get("SUPABASE_URL"))
+
+    if not supabase_active:
         # SQLite path: read from kb_meta via SQLAlchemy.
         from app.database import get_db_session
         from app.models import KBMetaModel
@@ -73,7 +84,7 @@ def load_bands() -> list[BandRange]:
                     continue
 
     if not bands:
-        # kb_meta missing, malformed, or on Postgres — fall back to config.
+        # kb_meta missing, malformed, or on Supabase — fall back to config.
         bands = [
             BandRange(name=name, min_score=low, max_score=high)
             for name, (low, high) in CIBIL_BANDS.items()
