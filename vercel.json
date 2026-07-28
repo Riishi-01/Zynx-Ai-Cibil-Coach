@@ -6,7 +6,7 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 30,
-      "excludeFiles": "{tests/**,scripts/**,docs/**,frontend/src/**,assets/**,image.png,*.md}"
+      "excludeFiles": "{tests/**,scripts/**,docs/**,build_docs/**,Frontend_docs/**,frontend/**,assets/**,data/**,alembic/**,alembic.ini,*.md,*.db,*.png,*.jpg,*.jpeg,.git/**,.venv/**,.pytest_cache/**}"
     }
   },
   "rewrites": [

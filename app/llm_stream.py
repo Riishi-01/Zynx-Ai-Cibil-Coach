@@ -1,30 +1,25 @@
-"""LangChain chains for the coaching plan and follow-up chat.
+"""LLM streaming for the coaching plan and follow-up chat.
 
-Two chains, both consumed with .astream():
+Replaced the LangChain wrapper (langchain-openai + langchain-core) with the
+direct OpenAI async SDK to eliminate ~60-80 MB of transitive dependencies
+(langchain, langsmith, langchain-text-splitters, tiktoken, numpy, aiohttp …)
+from the Vercel function bundle.
 
-  plan chain — prompt | model | JsonOutputParser
-      JsonOutputParser is used rather than with_structured_output() because it
-      parses partial JSON, yielding a progressively more complete CoachPlan
-      object on every chunk. with_structured_output() only resolves once the
-      whole response has arrived, which would defeat streaming.
+Two async generators, both consumed with `async for`:
 
-  chat chain — prompt | model | StrOutputParser
-      Follow-up answers stream as markdown text.
+  astream_plan  — streams and partial-parses JSON incrementally, yielding
+                  ('plan', <partial dict>) tuples as the JSON is built up,
+                  then a final ('metadata', {...}) tuple.
 
-The model is constructed per call so tests can patch the factory.
+  astream_chat  — streams markdown text as raw string chunks.
 
-`astream_plan` yields `(kind, payload)` tuples:
-  ('plan', <partial dict>)   — one per parse tick
-  ('metadata', {model, prompt_tokens, completion_tokens}) — once at the end,
-      captured from LangChain's `usage_metadata` via a callback handler.
+Public interface is unchanged from the LangChain version so web.py and tests
+need no modifications.
 """
 
+import json
 import os
 from typing import AsyncIterator, Optional, Tuple
-
-from langchain_core.callbacks import BaseCallbackHandler
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 
 from app.config import (
     LLM_MAX_TOKENS,
@@ -35,112 +30,132 @@ from app.config import (
 from app.schemas import LLMError
 
 
-def build_model(
-    model: str = OPENAI_MODEL,
-    temperature: float = LLM_TEMPERATURE,
-    timeout: int = LLM_TIMEOUT_SECONDS,
-    max_tokens: int = LLM_MAX_TOKENS,
-    json_mode: bool = False,
-):
-    """Construct the chat model.
+def _get_client():
+    """Return a configured AsyncOpenAI client.
 
-    Isolated in one function so tests can patch it without touching the chains.
+    Imported lazily so the module stays importable without OPENAI_API_KEY set
+    (e.g. tests that mock the function).
     """
+    from openai import AsyncOpenAI  # ~8 MB, already required
+
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise LLMError("OPENAI_API_KEY not set in environment")
-
-    # Imported lazily so the module can be imported without the dependency
-    # being configured.
-    from langchain_openai import ChatOpenAI
-
-    kwargs = {
-        "model": model,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "timeout": timeout,
-        "api_key": api_key,
-    }
-    if json_mode:
-        # Guarantees syntactically valid JSON, which keeps partial parsing sane.
-        kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
-
-    return ChatOpenAI(**kwargs)
+    return AsyncOpenAI(api_key=api_key, timeout=LLM_TIMEOUT_SECONDS)
 
 
-class _UsageCapture(BaseCallbackHandler):
-    """Captures the final LLM usage so the SSE stream can surface token counts.
+def _build_messages(system_prompt: str, user_message: str) -> list[dict]:
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_message},
+    ]
 
-    LangChain populates `AIMessage.usage_metadata` for OpenAI Chat Completions
-    with `input_tokens` / `output_tokens` / `total_tokens`. The model name lives
-    on `AIMessage.response_metadata['model_name']`. We read both in `on_llm_end`,
-    which fires once per chain invocation.
+
+def _try_parse_partial_json(buf: str) -> Optional[dict]:
+    """Attempt to parse the accumulated buffer as JSON.
+
+    OpenAI streams the JSON object token-by-token; each chunk extends the
+    buffer. We try a full parse first; if that fails we attempt a 'close and
+    parse' heuristic that appends the minimum number of closing braces/brackets
+    needed to make the fragment valid — giving the frontend progressive updates
+    even before the full object arrives.
     """
+    buf = buf.strip()
+    if not buf:
+        return None
 
-    def __init__(self) -> None:
-        self.usage: Optional[dict] = None
-        self.model_name: Optional[str] = None
+    # Fast path: complete JSON.
+    try:
+        return json.loads(buf)
+    except json.JSONDecodeError:
+        pass
 
-    def on_llm_end(self, response, **kwargs) -> None:  # type: ignore[override]
-        try:
-            generation = response.generations[0][0]
-            message = getattr(generation, "message", None)
-            if message is not None:
-                usage = getattr(message, "usage_metadata", None)
-                if isinstance(usage, dict) and usage:
-                    self.usage = usage
-                response_meta = getattr(message, "response_metadata", None) or {}
-                if isinstance(response_meta, dict):
-                    name = response_meta.get("model_name")
-                    if isinstance(name, str) and name:
-                        self.model_name = name
-        except (IndexError, AttributeError):
-            # Stream returned no generations; leave usage as None.
-            pass
+    # Heuristic: balance braces/brackets.
+    opens = buf.count("{") - buf.count("}") + buf.count("[") - buf.count("]")
+    if opens <= 0:
+        return None
+    candidate = buf + "}" * (buf.count("{") - buf.count("}")) + "]" * (buf.count("[") - buf.count("]"))
+    try:
+        return json.loads(candidate)
+    except json.JSONDecodeError:
+        return None
 
 
 async def astream_plan(
     system_prompt: str,
     user_message: str,
-    model=None,
+    model=None,  # kept for test compatibility (model param ignored; use config)
 ) -> AsyncIterator[Tuple[str, dict]]:
     """Stream the coaching plan, then a final metadata frame.
 
-    Each yielded item is a `(kind, payload)` tuple:
-
-      ('plan', <partial dict>)           — from JsonOutputParser as it parses
-      ('metadata', {model, prompt_tokens, completion_tokens})  — captured from
-                                            LangChain's usage_metadata on the
-                                            final AIMessage.
-
-    The frontend's /api/analyze handler turns each tuple into an SSE event with
-    the matching event name.
+    Yields (kind, payload) tuples:
+      ('plan', <partial dict>)                         — progressive JSON parse
+      ('metadata', {model, prompt_tokens, completion_tokens})  — once at end
     """
-    chain_model = model if model is not None else build_model(json_mode=True)
-    chain = chain_model | JsonOutputParser()
+    client = _get_client()
+    messages = _build_messages(system_prompt, user_message)
 
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_message),
-    ]
-    capture = _UsageCapture()
+    buf = ""
+    last_emitted: Optional[dict] = None
+    usage_data: Optional[dict] = None
+    model_name: Optional[str] = None
 
     try:
-        async for partial in chain.astream(messages, config={"callbacks": [capture]}):
-            if isinstance(partial, dict):
-                yield ("plan", partial)
+        stream = await client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=messages,
+            temperature=LLM_TEMPERATURE,
+            max_tokens=LLM_MAX_TOKENS,
+            response_format={"type": "json_object"},
+            stream=True,
+            stream_options={"include_usage": True},
+        )
+
+        async for chunk in stream:
+            # Capture usage from the final chunk (stream_options include_usage)
+            if chunk.usage:
+                usage_data = {
+                    "prompt_tokens": chunk.usage.prompt_tokens,
+                    "completion_tokens": chunk.usage.completion_tokens,
+                }
+                if chunk.model:
+                    model_name = chunk.model
+
+            if not chunk.choices:
+                continue
+
+            delta = chunk.choices[0].delta
+            if delta.content:
+                buf += delta.content
+
+            if chunk.model and not model_name:
+                model_name = chunk.model
+
+            # Emit a partial parse on every chunk so the frontend gets updates
+            parsed = _try_parse_partial_json(buf)
+            if parsed is not None and parsed != last_emitted:
+                last_emitted = parsed
+                yield ("plan", parsed)
+
     except Exception as exc:
         raise LLMError(f"Plan streaming failed: {exc}") from exc
 
-    if capture.usage:
-        prompt_tokens = int(capture.usage.get("input_tokens", 0) or 0)
-        completion_tokens = int(capture.usage.get("output_tokens", 0) or 0)
+    # Emit final complete parse if it differs from the last partial
+    if buf:
+        try:
+            final = json.loads(buf)
+            if final != last_emitted:
+                yield ("plan", final)
+        except json.JSONDecodeError:
+            pass
+
+    if usage_data:
         yield (
             "metadata",
             {
-                "model": capture.model_name or OPENAI_MODEL,
-                "prompt_tokens": prompt_tokens,
-                "completion_tokens": completion_tokens,
+                "model": model_name or OPENAI_MODEL,
+                "prompt_tokens": usage_data["prompt_tokens"],
+                "completion_tokens": usage_data["completion_tokens"],
             },
         )
 
@@ -148,20 +163,27 @@ async def astream_plan(
 async def astream_chat(
     system_prompt: str,
     user_message: str,
-    model=None,
+    model=None,  # kept for test compatibility
 ) -> AsyncIterator[str]:
     """Stream a follow-up answer as markdown text chunks."""
-    chain_model = model if model is not None else build_model()
-    chain = chain_model | StrOutputParser()
-
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_message),
-    ]
+    client = _get_client()
+    messages = _build_messages(system_prompt, user_message)
 
     try:
-        async for chunk in chain.astream(messages):
-            if chunk:
-                yield chunk
+        stream = await client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=messages,
+            temperature=LLM_TEMPERATURE,
+            max_tokens=LLM_MAX_TOKENS,
+            stream=True,
+        )
+
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            content = chunk.choices[0].delta.content
+            if content:
+                yield content
+
     except Exception as exc:
         raise LLMError(f"Chat streaming failed: {exc}") from exc

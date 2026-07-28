@@ -1,14 +1,12 @@
-"""LLM Invocation — call the model and collect the output.
+"""LLM Invocation — synchronous, single-shot call to the model.
 
-This is Phase 9: uses LangChain to call the LLM with the assembled prompt.
-Returns the raw generated analysis, reasoning, and recommendations.
+Replaced the LangChain wrapper with the direct OpenAI SDK to eliminate the
+langchain-openai / langchain-core dependency tree from the Vercel bundle.
+Public interface (invoke_llm) is unchanged.
 """
 
 import os
 from typing import Optional
-
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
 
 from app.schemas import LLMError
 from app.config import OPENAI_MODEL, LLM_TEMPERATURE, LLM_TIMEOUT_SECONDS, LLM_MAX_TOKENS
@@ -23,7 +21,7 @@ def invoke_llm(
     max_tokens: int = LLM_MAX_TOKENS,
 ) -> str:
     """Call the LLM and return the generated response.
-    
+
     Args:
       system_prompt: System instructions
       user_message: The query / facts to analyse
@@ -31,40 +29,31 @@ def invoke_llm(
       temperature: Sampling temperature (default 0.3 for low randomness)
       timeout: Request timeout in seconds
       max_tokens: Maximum tokens to generate
-    
+
     Returns:
       The raw model output (analysis + reasoning + improvement plan).
-    
+
     Raises:
       LLMError if the invocation fails.
     """
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise LLMError("OPENAI_API_KEY not set in environment")
-    
+
     try:
-        # Initialise the LLM
-        llm = ChatOpenAI(
+        from openai import OpenAI  # imported lazily so tests can mock
+
+        client = OpenAI(api_key=api_key, timeout=timeout)
+        response = client.chat.completions.create(
             model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
             temperature=temperature,
             max_tokens=max_tokens,
-            timeout=timeout,
-            api_key=api_key,
         )
-        
-        # Build the message list
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_message),
-        ]
-        
-        # Invoke
-        response = llm.invoke(messages)
-        
-        # Extract the text
-        output = response.content
-        
-        return output
-    
+        return response.choices[0].message.content or ""
+
     except Exception as exc:
         raise LLMError(f"LLM invocation failed: {exc}") from exc
