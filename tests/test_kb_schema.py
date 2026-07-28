@@ -81,8 +81,14 @@ def test_kb_labels_columns(seeded_db):
 def test_migration_upgrade_downgrade_roundtrip(tmp_path, project_root):
     """alembic upgrade head then downgrade -1 runs clean on a fresh database.
 
-    Uses its own empty DB file so the seeded test database is unaffected.
+    Skipped on the production branch where alemic.ini and the migration
+    versions directory are local-dev-only and excluded from the deploy tree
+    (the Supabase schema is created out-of-band via docs/supabase_schema.sql).
     """
+    alembic_ini = project_root / "alembic.ini"
+    if not alembic_ini.exists():
+        pytest.skip("alembic.ini not present (local-dev only)")
+
     db_file = tmp_path / "roundtrip.db"
     env = {
         "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",

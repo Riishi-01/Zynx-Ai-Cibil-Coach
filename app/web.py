@@ -7,8 +7,7 @@ from datetime import datetime
 from typing import Any, AsyncGenerator, Optional
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse, FileResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.data_fetch import fetch_customer_by_pan
@@ -126,29 +125,10 @@ def _sse(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
 
 
-from pathlib import Path
-
-# Serve the Vite-built frontend. In production, `npm run build` outputs to
-# frontend/dist/. If that directory exists, we mount it and serve index.html
-# for the root route. In development, the Vite dev server handles all frontend
-# assets and proxies /api to this process, so this path isn't reached.
-_FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
-
-
-@app.get("/", response_class=HTMLResponse)
-async def serve_home():
-    """Serve the built frontend's index.html."""
-    index_path = _FRONTEND_DIST / "index.html"
-    if index_path.exists():
-        return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
-    return HTMLResponse(
-        content="<h1>CIBIL Credit Coach</h1><p>Run <code>cd frontend && npm run build</code> to generate the UI.</p>"
-    )
-
-
-# Mount static assets (JS, CSS, fonts) AFTER api routes so /api/* takes priority.
-if _FRONTEND_DIST.exists():
-    app.mount("/assets", StaticFiles(directory=str(_FRONTEND_DIST / "assets")), name="static")
+# Note: the Vite-built frontend in `frontend/dist/` is served by Vercel's CDN
+# via the `outputDirectory` in vercel.json, NOT by this FastAPI app. Keeping
+# `/` and `/assets` out of the function avoids dead code at cold-start and
+# lets Vercel's edge cache handle static assets efficiently.
 
 
 @app.post("/api/analyze")
@@ -370,13 +350,3 @@ async def analyse_canvas(request: Request) -> CanvasResponse:
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "service": "CIBIL Credit Coach"}
-
-
-    import uvicorn
-    
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        log_level="info",
-    )

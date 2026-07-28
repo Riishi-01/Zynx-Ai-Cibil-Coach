@@ -5,21 +5,12 @@
   "framework": null,
   "functions": {
     "api/index.py": {
-      "runtime": "python3.12",
-      "maxDuration": 30
+      "maxDuration": 30,
+      "excludeFiles": "{tests/**,scripts/**,docs/**,frontend/src/**,frontend/public/**,frontend/index.html,frontend/.gitignore,frontend/.oxlintrc.json,frontend/tsconfig*.json,frontend/vitest.config.ts,frontend/vite.config.ts,frontend/README.md,frontend/package*.json,frontend/test/**,assets/**,image.png,*.md,.env*,.venv/**,__pycache__/**}"
     }
   },
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/index.py" },
-    { "source": "/assets/:path*", "destination": "/assets/$1" },
-    { "source": "/:path*.js", "destination": "/$1" },
-    { "source": "/:path*.css", "destination": "/$1" },
-    { "source": "/:path*.svg", "destination": "/$1" },
-    { "source": "/:path*.png", "destination": "/$1" },
-    { "source": "/:path*.ico", "destination": "/$1" },
-    { "source": "/:path*.woff", "destination": "/$1" },
-    { "source": "/:path*.woff2", "destination": "/$1" },
-    { "source": "/:path*.map", "destination": "/$1" },
     { "source": "/:path*", "destination": "/index.html" }
   ],
   "headers": [
