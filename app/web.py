@@ -1,9 +1,9 @@
-"""FastAPI web server with streaming LLM response."""
+"""FastAPI web server with streaming structured LLM output."""
 
 import os
 import json
 from datetime import datetime
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator, Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse, FileResponse, HTMLResponse
@@ -14,9 +14,13 @@ from app.data_fetch import fetch_customer_by_pan
 from app.pii_parser import sanitise_record
 from app.precompute import precompute_facts
 from app.rule_engine import fire_labels
-from app.prompt_builder import build_prompt
-from app.llm_invoke import invoke_llm
-from app.schemas import InvalidPAN, CustomerNotFound, LLMError
+from app.prompt_builder import build_prompt, build_chat_prompt
+from app.llm_stream import astream_plan, astream_chat
+from app.citations import cite_plan
+from app.label_service import build_labels_response, run_pipeline
+from app.canvas_service import build_canvas_response
+from app.api_schemas import LabelsResponse, CanvasResponse
+from app.schemas import InvalidPAN, CustomerNotFound, LLMError, KBUnavailable
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -34,89 +38,223 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Store session data (in-memory for now; use Redis in production)
-sessions: dict[str, dict] = {}
+# Streaming headers. X-Accel-Buffering disables nginx response buffering, without
+# which a reverse proxy holds the stream until it completes.
+_SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+}
+
+
+def _sse(event: str, data: Any) -> str:
+    """Format one Server-Sent Event frame."""
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
+
+
+from pathlib import Path
+
+# Serve the Vite-built frontend. In production, `npm run build` outputs to
+# frontend/dist/. If that directory exists, we mount it and serve index.html
+# for the root route. In development, the Vite dev server handles all frontend
+# assets and proxies /api to this process, so this path isn't reached.
+_FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
 
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_home():
-    """Serve the main HTML page."""
-    html_content = get_html_page()
-    return html_content
+    """Serve the built frontend's index.html."""
+    index_path = _FRONTEND_DIST / "index.html"
+    if index_path.exists():
+        return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
+    return HTMLResponse(
+        content="<h1>CIBIL Credit Coach</h1><p>Run <code>cd frontend && npm run build</code> to generate the UI.</p>"
+    )
+
+
+# Mount static assets (JS, CSS, fonts) AFTER api routes so /api/* takes priority.
+if _FRONTEND_DIST.exists():
+    app.mount("/assets", StaticFiles(directory=str(_FRONTEND_DIST / "assets")), name="static")
 
 
 @app.post("/api/analyze")
 async def analyze_customer(request: Request):
-    """Analyse a customer by PAN and stream LLM response."""
+    """Analyse a customer and stream the result as Server-Sent Events.
+
+    Event order matters:
+
+      1. `canvas`     — the full deterministic payload (score, utilisation,
+                        heatmap, all 32 labels). Emitted immediately, so the UI
+                        renders charts without waiting on the model.
+      2. `plan_delta` — the coaching plan as progressively complete JSON, from
+                        JsonOutputParser under .astream().
+      3. `citations`  — figures in the plan traced back to precomputed facts.
+      4. `done`       — terminal.
+
+    An `error` event is emitted instead of 3/4 if generation fails; the canvas
+    has already been delivered by then, so the UI degrades to charts-only.
+
+    Body: {"pan": "ABCPS1234A", "income": 75000}
+    """
+    pan, income_inr = _parse_analysis_body(await request.json())
+
+    # Everything deterministic happens up front, so failures surface as proper
+    # HTTP status codes rather than mid-stream errors.
     try:
-        body = await request.json()
-        pan = body.get("pan", "").strip().upper()
-        income_inr = int(body.get("income", 0))
+        canvas = build_canvas_response(pan, monthly_income_inr=income_inr)
+        _record, sanitised, facts, fired = run_pipeline(pan, income_inr)
+    except InvalidPAN as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except CustomerNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except KBUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
-        # Validation
-        if not pan:
-            raise HTTPException(status_code=400, detail="PAN is required")
-        if income_inr <= 0:
-            raise HTTPException(status_code=400, detail="Income must be > 0")
+    system_prompt, user_message = build_prompt(sanitised, facts, fired)
 
-        # Fetch customer
+    async def event_stream() -> AsyncGenerator[str, None]:
+        yield _sse("canvas", canvas.model_dump(mode="json"))
+
+        plan: dict = {}
         try:
-            record = fetch_customer_by_pan(pan)
-        except (InvalidPAN, CustomerNotFound) as e:
-            raise HTTPException(status_code=400, detail=f"Invalid PAN: {str(e)}")
+            async for partial in astream_plan(system_prompt, user_message):
+                plan = partial
+                yield _sse("plan_delta", partial)
 
-        # Process pipeline
-        sanitised = sanitise_record(record)
-        facts = precompute_facts(sanitised, monthly_income_inr=income_inr)
-        fired = fire_labels(facts)
-        sys_prompt, user_msg = build_prompt(sanitised, facts, fired)
+            if plan:
+                citations = cite_plan(plan, facts, fired)
+                yield _sse(
+                    "citations",
+                    {"citations": [c.model_dump(mode="json") for c in citations]},
+                )
 
-        # Store session
-        session_id = f"{pan}_{datetime.utcnow().timestamp()}"
-        sessions[session_id] = {
-            "pan": pan,
-            "income": income_inr,
-            "score": facts.score,
-            "band": facts.score_band.value,
-            "labels_fired": len(fired),
-            "timestamp": datetime.utcnow().isoformat(),
-        }
+            yield _sse("done", {"ok": True})
 
-        # Stream LLM response
-        async def stream_response() -> AsyncGenerator[str, None]:
-            try:
-                # Send initial metadata
-                yield f"data: {json.dumps({'type': 'metadata', 'session_id': session_id, 'score': facts.score, 'band': facts.score_band.value, 'labels_fired': len(fired)})}\n\n"
+        except LLMError as exc:
+            yield _sse("error", {"message": str(exc)})
+        except Exception as exc:  # noqa: BLE001 - surface any failure to the client
+            yield _sse("error", {"message": f"Unexpected error: {exc}"})
 
-                # Call LLM and stream tokens
-                llm_output = invoke_llm(sys_prompt, user_msg)
-                
-                # Stream the output in chunks (larger chunks for smoother flow)
-                chunk_size = 30
-                for i in range(0, len(llm_output), chunk_size):
-                    chunk = llm_output[i : i + chunk_size]
-                    yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
-                
-                # Send completion (no final message, just done event)
-                yield f"data: {json.dumps({'type': 'done', 'session_id': session_id})}\n\n"
-
-            except LLMError as e:
-                yield f"data: {json.dumps({'type': 'error', 'message': f'LLM Error: {str(e)}'})}\n\n"
-            except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'message': f'Error: {str(e)}'})}\n\n"
-
-        return StreamingResponse(stream_response(), media_type="text/event-stream")
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )
 
 
-@app.get("/api/sessions")
-async def get_sessions():
-    """Get all previous sessions for persistence."""
-    return {"sessions": list(sessions.values())}
+@app.post("/api/chat")
+async def chat_followup(request: Request):
+    """Answer a follow-up question, streaming markdown as SSE.
+
+    Body: {"pan": ..., "income": ..., "message": "...", "history": [...]}
+    History entries are {"role": "user"|"assistant", "content": "..."}.
+    """
+    body = await request.json()
+    pan, income_inr = _parse_analysis_body(body)
+
+    question = str(body.get("message", "")).strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="message is required")
+
+    history = body.get("history") or []
+    if not isinstance(history, list):
+        raise HTTPException(status_code=400, detail="history must be a list")
+
+    try:
+        _record, sanitised, facts, fired = run_pipeline(pan, income_inr)
+    except InvalidPAN as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except CustomerNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except KBUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+    system_prompt, user_message = build_chat_prompt(
+        sanitised, facts, fired, question, history
+    )
+
+    async def event_stream() -> AsyncGenerator[str, None]:
+        try:
+            async for chunk in astream_chat(system_prompt, user_message):
+                yield _sse("token", {"content": chunk})
+            yield _sse("done", {"ok": True})
+        except LLMError as exc:
+            yield _sse("error", {"message": str(exc)})
+        except Exception as exc:  # noqa: BLE001
+            yield _sse("error", {"message": f"Unexpected error: {exc}"})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )
+
+
+def _parse_analysis_body(body: dict) -> tuple[str, Optional[int]]:
+    """Validate the shared {pan, income} request body.
+
+    Returns (pan, income_inr) with income None when not supplied.
+    """
+    pan = str(body.get("pan", "")).strip().upper()
+    if not pan:
+        raise HTTPException(status_code=400, detail="PAN is required")
+
+    income_raw = body.get("income")
+    income_inr = None
+    if income_raw not in (None, ""):
+        try:
+            income_inr = int(income_raw)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="income must be a whole number")
+        if income_inr <= 0:
+            raise HTTPException(status_code=400, detail="income must be > 0")
+
+    return pan, income_inr
+
+
+@app.post("/api/labels", response_model=LabelsResponse)
+async def analyse_labels(request: Request) -> LabelsResponse:
+    """Return the full 32-label diagnostic for a PAN.
+
+    Deterministic and LLM-free: fetch -> sanitise -> precompute -> fire_labels,
+    joined to knowledge base content with facts resolved to values.
+
+    Body: {"pan": "ABCPS1234A", "income": 75000}
+    `income` is optional; the customer's stored income is used when omitted.
+    """
+    pan, income_inr = _parse_analysis_body(await request.json())
+
+    try:
+        return build_labels_response(pan, monthly_income_inr=income_inr)
+    except InvalidPAN as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except CustomerNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except KBUnavailable as exc:
+        # The KB lives in SQLite; an empty kb_labels table is an operator error.
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+@app.post("/api/canvas", response_model=CanvasResponse)
+async def analyse_canvas(request: Request) -> CanvasResponse:
+    """Return the deterministic canvas payload for a PAN.
+
+    Score hero, 3-month trend, utilisation with per-card breakdown, 24-month
+    payment heatmap, and the label diagnostic. No LLM, so the canvas can render
+    before any coaching text has been generated.
+
+    Body: {"pan": "ABCPS1234A", "income": 75000}
+    """
+    pan, income_inr = _parse_analysis_body(await request.json())
+
+    try:
+        return build_canvas_response(pan, monthly_income_inr=income_inr)
+    except InvalidPAN as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except CustomerNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except KBUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
 
 @app.get("/api/health")
@@ -125,784 +263,6 @@ async def health_check():
     return {"status": "healthy", "service": "CIBIL Credit Coach"}
 
 
-def get_html_page() -> str:
-    """Return the complete HTML page."""
-    return """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CIBIL Credit Coach — AI Credit Analysis</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary: #00d4ff;
-            --primary-dark: #0099cc;
-            --secondary: #ff6b9d;
-            --bg-dark: #0a0e27;
-            --bg-card: #141829;
-            --bg-input: #1a1f3a;
-            --text-primary: #e0e6ff;
-            --text-secondary: #a0a6c0;
-            --success: #00d084;
-            --warning: #ffa500;
-            --error: #ff4757;
-            --border: #2a2f4a;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, var(--bg-dark) 0%, #0f1535 100%);
-            color: var(--text-primary);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        /* Header */
-        header {
-            text-align: center;
-            margin-bottom: 40px;
-            padding: 30px 0;
-        }
-
-        .logo {
-            font-size: 32px;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 10px;
-        }
-
-        .tagline {
-            color: var(--text-secondary);
-            font-size: 14px;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-        }
-
-        /* Main layout */
-        .layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            align-items: start;
-        }
-
-        /* Form section */
-        .form-section {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 30px;
-            backdrop-filter: blur(10px);
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-primary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 12px 16px;
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 14px;
-            transition: all 0.3s ease;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
-        }
-
-        .form-group input::placeholder {
-            color: var(--text-secondary);
-        }
-
-        .required {
-            color: var(--error);
-        }
-
-        /* Button */
-        .btn {
-            width: 100%;
-            padding: 14px 20px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            border: none;
-            border-radius: 8px;
-            color: var(--bg-dark);
-            font-size: 14px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-top: 10px;
-        }
-
-        .btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 212, 255, 0.3);
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        /* Output section */
-        .output-section {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 30px;
-            backdrop-filter: blur(10px);
-            min-height: 300px;
-        }
-
-        .output-header {
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            color: var(--text-primary);
-        }
-
-        .score-display {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 20px;
-            padding: 20px;
-            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(255, 107, 157, 0.1) 100%);
-            border-radius: 12px;
-            border: 1px solid var(--border);
-        }
-
-        .score-number {
-            font-size: 48px;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .score-info {
-            flex: 1;
-        }
-
-        .score-band {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 5px;
-        }
-
-        .score-label {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--text-primary);
-        }
-
-        /* Analysis output */
-        .analysis-output {
-            max-height: 400px;
-            overflow-y: auto;
-            padding-right: 10px;
-        }
-
-        .analysis-output::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .analysis-output::-webkit-scrollbar-track {
-            background: var(--bg-input);
-            border-radius: 3px;
-        }
-
-        .analysis-output::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 3px;
-        }
-
-        .analysis-output::-webkit-scrollbar-thumb:hover {
-            background: var(--primary-dark);
-        }
-
-        .analysis-text {
-            line-height: 1.8;
-            color: var(--text-primary);
-            font-size: 15px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-
-        /* Rich text formatting */
-        .analysis-text strong {
-            color: var(--primary);
-            font-weight: 700;
-        }
-
-        .analysis-text em {
-            color: var(--secondary);
-            font-style: italic;
-        }
-
-        .analysis-text p {
-            margin-bottom: 12px;
-        }
-
-        .analysis-text ol, .analysis-text ul {
-            margin-left: 20px;
-            margin-bottom: 12px;
-        }
-
-        .analysis-text li {
-            margin-bottom: 8px;
-        }
-
-        /* Status messages */
-        .status-message {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .status-info {
-            background: rgba(0, 212, 255, 0.1);
-            border: 1px solid var(--primary);
-            color: var(--primary);
-        }
-
-        .status-error {
-            background: rgba(255, 71, 87, 0.1);
-            border: 1px solid var(--error);
-            color: var(--error);
-        }
-
-        .status-success {
-            background: rgba(0, 208, 132, 0.1);
-            border: 1px solid var(--success);
-            color: var(--success);
-        }
-
-        .spinner {
-            display: inline-block;
-            width: 4px;
-            height: 4px;
-            background: currentColor;
-            border-radius: 50%;
-            animation: spin 1s infinite;
-        }
-
-        @keyframes spin {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 1; }
-        }
-
-        /* Sessions history */
-        .sessions-section {
-            grid-column: 1 / -1;
-            margin-top: 30px;
-        }
-
-        .sessions-header {
-            font-size: 16px;
-            font-weight: 700;
-            margin-bottom: 15px;
-            color: var(--text-primary);
-        }
-
-        .session-item {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 10px;
-            font-size: 13px;
-            color: var(--text-secondary);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .session-info {
-            flex: 1;
-        }
-
-        .session-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            background: rgba(0, 212, 255, 0.1);
-            border-radius: 4px;
-            color: var(--primary);
-            font-size: 11px;
-            margin-left: 10px;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .layout {
-                grid-template-columns: 1fr;
-            }
-
-            .logo {
-                font-size: 24px;
-            }
-
-            .score-number {
-                font-size: 36px;
-            }
-        }
-
-        /* Empty state */
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--text-secondary);
-        }
-
-        .empty-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Header -->
-        <header>
-            <div class="logo">💳 CIBIL Coach</div>
-            <div class="tagline">AI-Powered Credit Analysis Engine</div>
-        </header>
-
-        <!-- Main Layout -->
-        <div class="layout">
-            <!-- Form Section -->
-            <div class="form-section">
-                <form id="analyzeForm" autocomplete="off" onsubmit="return false;">
-                    <div class="form-group">
-                        <label>PAN Card <span class="required">*</span></label>
-                        <input 
-                            type="text" 
-                            id="panInput" 
-                            placeholder="e.g., ABCPS1234A" 
-                            maxlength="10"
-                            autocomplete="off"
-                            required
-                        >
-                    </div>
-
-                    <div class="form-group">
-                        <label>Monthly Income (INR) <span class="required">*</span></label>
-                        <input 
-                            type="number" 
-                            id="incomeInput" 
-                            placeholder="e.g., 75000" 
-                            min="1"
-                            autocomplete="off"
-                            required
-                        >
-                    </div>
-
-                    <button type="submit" class="btn" id="submitBtn">
-                        Analyse My Credit Profile
-                    </button>
-                </form>
-            </div>
-
-            <!-- Output Section -->
-            <div class="output-section">
-                <div class="output-header">Analysis Result</div>
-                
-                <div id="outputContent">
-                    <div class="empty-state">
-                        <div class="empty-icon">📊</div>
-                        <div>Enter your PAN and income to get started</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sessions History -->
-        <div class="sessions-section">
-            <div class="sessions-header">📋 Previous Sessions</div>
-            <div id="sessionsList">
-                <div class="status-message status-info">
-                    <span>No previous sessions. Analyse your credit profile to get started.</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const form = document.getElementById('analyzeForm');
-        const panInput = document.getElementById('panInput');
-        const incomeInput = document.getElementById('incomeInput');
-        const submitBtn = document.getElementById('submitBtn');
-        const outputContent = document.getElementById('outputContent');
-        const sessionsList = document.getElementById('sessionsList');
-
-        // Format text as rich HTML (convert markdown-like patterns)
-        function formatRichText(text) {
-            // Replace **text** with <strong>text</strong>
-            text = text.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
-            
-            // Replace *text* with <em>text</em>
-            text = text.replace(/\\*(.*?)\\*/g, '<em>$1</em>');
-            
-            // Preserve line breaks and paragraphs
-            const lines = text.split('\\n');
-            let formatted = '';
-            let inList = false;
-            let listType = null;
-
-            for (let line of lines) {
-                line = line.trim();
-                
-                if (!line) {
-                    if (inList) {
-                        formatted += listType === 'ul' ? '</ul>' : '</ol>';
-                        inList = false;
-                    }
-                    formatted += '<p></p>';
-                    continue;
-                }
-
-                // Detect ordered list
-                if (/^\\d+\\./.test(line)) {
-                    if (!inList || listType !== 'ol') {
-                        if (inList) formatted += listType === 'ul' ? '</ul>' : '</ol>';
-                        formatted += '<ol>';
-                        inList = true;
-                        listType = 'ol';
-                    }
-                    formatted += '<li>' + line.replace(/^\\d+\\.\\s*/, '') + '</li>';
-                }
-                // Detect unordered list
-                else if (/^[-•]/.test(line)) {
-                    if (!inList || listType !== 'ul') {
-                        if (inList) formatted += listType === 'ul' ? '</ul>' : '</ol>';
-                        formatted += '<ul>';
-                        inList = true;
-                        listType = 'ul';
-                    }
-                    formatted += '<li>' + line.replace(/^[-•]\\s*/, '') + '</li>';
-                }
-                // Regular paragraph
-                else {
-                    if (inList) {
-                        formatted += listType === 'ul' ? '</ul>' : '</ol>';
-                        inList = false;
-                    }
-                    formatted += '<p>' + line + '</p>';
-                }
-            }
-
-            if (inList) {
-                formatted += listType === 'ul' ? '</ul>' : '</ol>';
-            }
-
-            return formatted;
-        }
-
-        // Load sessions from localStorage
-        function loadSessions() {
-            const stored = localStorage.getItem('cibilCoachSessions');
-            return stored ? JSON.parse(stored) : [];
-        }
-
-        function saveSessions(sessions) {
-            localStorage.setItem('cibilCoachSessions', JSON.stringify(sessions));
-        }
-
-        function displaySessions() {
-            const sessions = loadSessions();
-            if (sessions.length === 0) {
-                sessionsList.innerHTML = '<div class="status-message status-info">No previous sessions.</div>';
-                return;
-            }
-
-            sessionsList.innerHTML = sessions
-                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                .map(s => `
-                    <div class="session-item">
-                        <div class="session-info">
-                            <strong>${s.pan}</strong>
-                            <span class="session-badge">Score: ${s.score}</span>
-                            <br>
-                            <small>${new Date(s.timestamp).toLocaleString()}</small>
-                        </div>
-                    </div>
-                `).join('');
-        }
-
-        // Persist form values to localStorage
-        function saveFormValues() {
-            localStorage.setItem('cibilCoachPan', panInput.value);
-            localStorage.setItem('cibilCoachIncome', incomeInput.value);
-        }
-
-        function loadFormValues() {
-            const savedPan = localStorage.getItem('cibilCoachPan');
-            const savedIncome = localStorage.getItem('cibilCoachIncome');
-            
-            if (savedPan) panInput.value = savedPan;
-            if (savedIncome) incomeInput.value = savedIncome;
-        }
-
-        // Form submission - COMPLETELY PREVENT PAGE RELOAD
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('Form submitted - preventDefault and stopPropagation called');
-            // IMPORTANT: Do NOT clear or reset the form - fields must persist!
-
-            const pan = panInput.value.trim().toUpperCase();
-            const income = parseInt(incomeInput.value);
-
-            // Normalise PAN in place (income is left untouched so it can't be blanked)
-            panInput.value = pan;
-            saveFormValues();
-
-            // Validation
-            if (!pan || !/^[A-Z]{5}\\d{4}[A-Z]$/.test(pan)) {
-                showError('Invalid PAN format. Expected: AAAAA9999A');
-                return;
-            }
-
-            if (!Number.isFinite(income) || income <= 0) {
-                showError('Income must be greater than 0');
-                return;
-            }
-
-            // Disable form
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Analysing...';
-
-            try {
-                // Call API
-                const response = await fetch('/api/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pan, income }),
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    showError(error.detail || 'Analysis failed');
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Analyse My Credit Profile';
-                    return;
-                }
-
-                // Stream response
-                await handleStream(response, pan, income);
-
-            } catch (err) {
-                showError(`Error: ${err.message}`);
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Analyse My Credit Profile';
-            }
-            
-            // Return false to prevent any default form behavior
-            return false;
-        });
-
-        async function handleStream(response, pan, income) {
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let analysisText = '';
-            let sessionId = '';
-            let score = 0;
-            let band = '';
-
-            // PRESERVE FORM VALUES - DO NOT LET THEM GET CLEARED
-            panInput.value = pan;
-            incomeInput.value = income;
-
-            outputContent.innerHTML = '<div class="status-message status-info"><span class="spinner"></span> Processing your profile...</div>';
-
-            try {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\\n');
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            try {
-                                const data = JSON.parse(line.slice(6));
-
-                                if (data.type === 'metadata') {
-                                    sessionId = data.session_id;
-                                    score = data.score;
-                                    band = data.band;
-                                    
-                                    // PRESERVE FORM VALUES
-                                    panInput.value = pan;
-                                    incomeInput.value = income;
-                                    
-                                    outputContent.innerHTML = `
-                                        <div class="score-display">
-                                            <div class="score-number">${score}</div>
-                                            <div class="score-info">
-                                                <div class="score-band">CIBIL Score Band</div>
-                                                <div class="score-label">${band}</div>
-                                            </div>
-                                        </div>
-                                        <div class="analysis-output">
-                                            <div class="analysis-text" id="analysisText"></div>
-                                        </div>
-                                    `;
-                                }
-
-                                if (data.type === 'token') {
-                                    analysisText += data.content;
-                                    // Format as rich text instead of markdown
-                                    document.getElementById('analysisText').innerHTML = formatRichText(analysisText);
-                                    // Auto-scroll to bottom
-                                    const output = document.querySelector('.analysis-output');
-                                    output.scrollTop = output.scrollHeight;
-                                    
-                                    // PRESERVE FORM VALUES DURING STREAMING
-                                    panInput.value = pan;
-                                    incomeInput.value = income;
-                                }
-
-                                if (data.type === 'done') {
-                                    // Save session
-                                    const sessions = loadSessions();
-                                    sessions.push({
-                                        pan,
-                                        income,
-                                        score,
-                                        band,
-                                        timestamp: new Date().toISOString(),
-                                        analysis: analysisText,
-                                    });
-                                    saveSessions(sessions);
-                                    displaySessions();
-
-                                    // FINAL PRESERVATION OF FORM VALUES
-                                    panInput.value = pan;
-                                    incomeInput.value = income;
-                                    saveFormValues();
-
-                                    submitBtn.disabled = false;
-                                    submitBtn.textContent = 'Analyse My Credit Profile';
-                                }
-
-                                if (data.type === 'error') {
-                                    showError(data.message);
-                                    
-                                    // PRESERVE FORM ON ERROR
-                                    panInput.value = pan;
-                                    incomeInput.value = income;
-                                    
-                                    submitBtn.disabled = false;
-                                    submitBtn.textContent = 'Analyse My Credit Profile';
-                                }
-
-                            } catch (e) {
-                                console.error('Parse error:', e);
-                            }
-                        }
-                    }
-                }
-            } catch (err) {
-                showError(`Stream error: ${err.message}`);
-                
-                // PRESERVE FORM ON ANY ERROR
-                panInput.value = pan;
-                incomeInput.value = income;
-                
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Analyse My Credit Profile';
-            }
-        }
-
-        function showError(message) {
-            outputContent.innerHTML = `
-                <div class="status-message status-error">
-                    ${message}
-                </div>
-                <div class="empty-state">
-                    <div>❌ Analysis Failed</div>
-                </div>
-            `;
-        }
-
-        // Load sessions on page load
-        displaySessions();
-        
-        // Load form values on page load
-        loadFormValues();
-
-        // Auto-format PAN input
-        panInput.addEventListener('input', (e) => {
-            e.target.value = e.target.value.toUpperCase();
-            saveFormValues();
-        });
-
-        // Format income input (allow only numbers)
-        incomeInput.addEventListener('input', (e) => {
-            e.target.value = e.target.value.replace(/[^0-9]/g, '');
-            saveFormValues();
-        });
-
-        // Enter key triggers a real (cancelable) submit event
-        panInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                form.requestSubmit();
-            }
-        });
-
-        incomeInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                form.requestSubmit();
-            }
-        });
-    </script>
-</body>
-</html>
-"""
-
-
-if __name__ == "__main__":
     import uvicorn
     
     uvicorn.run(

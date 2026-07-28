@@ -91,7 +91,7 @@ def main():
         # ===== CITATIONS
         print()
         print("[7/7] Generating citations...")
-        annotated, citations = generate_citations(llm_output, facts, fired)
+        citations = generate_citations(llm_output, facts, fired)
         print(f"✓ {len(citations)} citations extracted")
         
         # ===== OUTPUT

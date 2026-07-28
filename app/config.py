@@ -52,8 +52,11 @@ PAN_INDIVIDUAL_CHAR = "P"  # 4th character for individuals
 DATA_STALENESS_DAYS = 7
 
 # Paths
-DATA_DIR = Path(__file__).parent.parent / "build_docs"
-CIBIL_DATA_PATH = DATA_DIR / "cibil_data.json"
+# The KB fixture lives in Frontend_docs/. The customer fixture (cibil_data.json)
+# is no longer required at runtime — customers are read from SQLite. It is only
+# consulted by scripts/seed_db.py when re-seeding from scratch.
+DATA_DIR = Path(__file__).parent.parent / "Frontend_docs"
+CIBIL_DATA_PATH = Path(__file__).parent.parent / "build_docs" / "cibil_data.json"
 LABEL_KB_PATH = DATA_DIR / "label_kb.json"
 
 # LLM

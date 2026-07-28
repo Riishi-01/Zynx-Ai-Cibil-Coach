@@ -1,11 +1,19 @@
 """Database engine and session management for CIBIL Credit Coach."""
 
 import os
+from pathlib import Path
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
 from app.models import Base
+
+# Resolve alembic config relative to this file, not the process CWD, so that
+# migrations work regardless of where the app is launched from.
+_PROJECT_ROOT = Path(__file__).parent.parent
+_ALEMBIC_INI = _PROJECT_ROOT / "alembic.ini"
+_ALEMBIC_DIR = _PROJECT_ROOT / "alembic"
 
 
 # Determine database URL from environment or use default SQLite
@@ -43,13 +51,20 @@ def get_db_session() -> Session:
           session.close()
     """
     global _migrations_run
-    
+
     # Auto-run migrations on first session creation
     if not _migrations_run:
         try:
             import alembic.config
             import alembic.command
-            alembic_cfg = alembic.config.Config("alembic.ini")
+
+            alembic_cfg = alembic.config.Config(str(_ALEMBIC_INI))
+            # Point alembic at the same database this module is bound to.
+            # alembic.ini hardcodes sqlite:///./cibil_coach.db, so without this
+            # override the migration would run against the wrong database
+            # whenever DATABASE_URL differs (tests, staging, production).
+            alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
+            alembic_cfg.set_main_option("script_location", str(_ALEMBIC_DIR))
             # upgrade() returns the current version; we just call it for side effects
             alembic.command.upgrade(alembic_cfg, "head")
         except Exception:
@@ -57,7 +72,7 @@ def get_db_session() -> Session:
             pass
         finally:
             _migrations_run = True  # Mark as run regardless to prevent retries
-    
+
     return SessionLocal()
 
 

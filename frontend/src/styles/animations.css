@@ -1,0 +1,76 @@
+/**
+ * Keyframe animations referenced by name across components.
+ * See SPEC.md §3 (Motion & Collapse Spec) for the full timing table — this
+ * file holds only the @keyframes; durations/easings are applied at the
+ * call site via the tokens in tokens.css.
+ */
+
+/* Streaming cursor blink (motion #10). Pure CSS so it never drops frames
+   during a busy re-render. */
+@keyframes cursor-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Skeleton shimmer (motion #14) while canvas cards await data. */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Ambient brand mark glow (motion #13). Intentionally subtle — this pulses
+   forever, so it must never be the thing a user's eye is drawn to. */
+@keyframes brand-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 12px 0 rgba(124, 92, 255, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(124, 92, 255, 0.4);
+  }
+}
+
+/* Generic fade-up used as the reduced-motion fallback for several transform
+   based entrances (headline morph, pane reveal, message-in, pill slide-in). */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: none;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}

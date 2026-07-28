@@ -1,0 +1,1139 @@
+[
+  {
+    "customer": {
+      "customer_id": "cust_001",
+      "first_name": "Anjali",
+      "dob_year": 1997,
+      "income_bracket": "60k_100k",
+      "income_monthly_paise": 7500000,
+      "region": "IN-HYD",
+      "pan_card": "ABCPS1234A"
+    },
+    "score": {
+      "score": 715,
+      "previous_score_1mo": 730,
+      "previous_score_3mo": 740,
+      "band": "Good",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_001_1",
+        "display_name": "HDFC Millennia",
+        "account_type": "credit_card",
+        "balance_paise": 420000,
+        "credit_limit_paise": 600000,
+        "monthly_payment_paise": 15000,
+        "opened_date": "2021-03-15",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_001_2",
+        "display_name": "SBI SimplyCLICK",
+        "account_type": "credit_card",
+        "balance_paise": 90000,
+        "credit_limit_paise": 200000,
+        "monthly_payment_paise": 4500,
+        "opened_date": "2022-09-01",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_001_3",
+        "display_name": "ICICI Platinum Chip",
+        "account_type": "credit_card",
+        "balance_paise": 5000,
+        "credit_limit_paise": 100000,
+        "monthly_payment_paise": 2500,
+        "opened_date": "2023-11-20",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_001_4",
+        "display_name": "Mahindra Finance Auto Loan",
+        "account_type": "auto_loan",
+        "balance_paise": 1245000,
+        "credit_limit_paise": null,
+        "monthly_payment_paise": 27800,
+        "opened_date": "2024-01-10",
+        "status": "open",
+        "is_revolving": false,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [
+      {"inquiry_id": "inq_001_1", "creditor_name": "ICICI Bank", "inquiry_date": "2026-04-12", "inquiry_type": "hard"},
+      {"inquiry_id": "inq_001_2", "creditor_name": "HDFC Bank", "inquiry_date": "2026-05-03", "inquiry_type": "hard"},
+      {"inquiry_id": "inq_001_3", "creditor_name": "SBI Card", "inquiry_date": "2026-06-22", "inquiry_type": "hard"}
+    ],
+    "collections": [
+      {
+        "collection_id": "col_001_1",
+        "original_creditor": "Airtel Postpaid",
+        "collection_agency": "Indian Recovery Agency",
+        "balance_paise": 89000,
+        "opened_date": "2024-03-15",
+        "status": "open",
+        "is_past_sol": false,
+        "is_disputable": true,
+        "is_medical": false
+      }
+    ],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_002",
+      "first_name": "Carlos",
+      "dob_year": 1985,
+      "income_bracket": "30k_60k",
+      "income_monthly_paise": 4000000,
+      "region": "IN-MUM",
+      "pan_card": "BCDRM2345B"
+    },
+    "score": {
+      "score": 612,
+      "previous_score_1mo": 605,
+      "previous_score_3mo": 610,
+      "band": "Fair",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_002_1",
+        "display_name": "Axis Bank Neo",
+        "account_type": "credit_card",
+        "balance_paise": 1900000,
+        "credit_limit_paise": 2000000,
+        "monthly_payment_paise": 95000,
+        "opened_date": "2015-06-10",
+        "status": "delinquent",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,3,2,1,0,0,0,0,0,1,0,0,0]
+      },
+      {
+        "account_id": "acc_002_2",
+        "display_name": "Kotak League Platinum",
+        "account_type": "credit_card",
+        "balance_paise": 1950000,
+        "credit_limit_paise": 2000000,
+        "monthly_payment_paise": 97500,
+        "opened_date": "2018-02-20",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_002_3",
+        "display_name": "Bajaj Finserv Personal Loan",
+        "account_type": "personal_loan",
+        "balance_paise": 48000000,
+        "credit_limit_paise": null,
+        "monthly_payment_paise": 1950000,
+        "opened_date": "2024-08-01",
+        "status": "open",
+        "is_revolving": false,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [
+      {"inquiry_id": "inq_002_1", "creditor_name": "Bajaj Finserv", "inquiry_date": "2026-06-05", "inquiry_type": "hard"}
+    ],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_003",
+      "first_name": "Priya",
+      "dob_year": 1992,
+      "income_bracket": "100k_150k",
+      "income_monthly_paise": 10000000,
+      "region": "IN-BLR",
+      "pan_card": "CDEPI3456C"
+    },
+    "score": {
+      "score": 748,
+      "previous_score_1mo": 738,
+      "previous_score_3mo": 725,
+      "band": "Good",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_003_1",
+        "display_name": "HDFC Regalia",
+        "account_type": "credit_card",
+        "balance_paise": 400000,
+        "credit_limit_paise": 5000000,
+        "monthly_payment_paise": 20000,
+        "opened_date": "2019-04-12",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_003_2",
+        "display_name": "Citi Rewards",
+        "account_type": "credit_card",
+        "balance_paise": 0,
+        "credit_limit_paise": 3000000,
+        "monthly_payment_paise": 0,
+        "opened_date": "2018-01-05",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_004",
+      "first_name": "Lin",
+      "dob_year": 1990,
+      "income_bracket": "100k_150k",
+      "income_monthly_paise": 11000000,
+      "region": "IN-NOI",
+      "pan_card": "DEFPC4567D"
+    },
+    "score": {
+      "score": 660,
+      "previous_score_1mo": 685,
+      "previous_score_3mo": 705,
+      "band": "Fair",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_004_1",
+        "display_name": "IndusInd Legend",
+        "account_type": "credit_card",
+        "balance_paise": 1650000,
+        "credit_limit_paise": 2500000,
+        "monthly_payment_paise": 82500,
+        "opened_date": "2017-09-18",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0]
+      },
+      {
+        "account_id": "acc_004_2",
+        "display_name": "LIC Housing Finance",
+        "account_type": "mortgage",
+        "balance_paise": 320000000,
+        "credit_limit_paise": null,
+        "monthly_payment_paise": 2850000,
+        "opened_date": "2021-11-30",
+        "status": "open",
+        "is_revolving": false,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [
+      {"inquiry_id": "inq_004_1", "creditor_name": "Yes Bank", "inquiry_date": "2026-03-20", "inquiry_type": "hard"},
+      {"inquiry_id": "inq_004_2", "creditor_name": "RBL Bank", "inquiry_date": "2026-05-14", "inquiry_type": "hard"}
+    ],
+    "collections": [
+      {
+        "collection_id": "col_004_1",
+        "original_creditor": "Vodafone Idea",
+        "collection_agency": "Aditya Recovery Services",
+        "balance_paise": 145000,
+        "opened_date": "2018-02-10",
+        "status": "open",
+        "is_past_sol": true,
+        "is_disputable": false,
+        "is_medical": false
+      }
+    ],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_005",
+      "first_name": "Marcus",
+      "dob_year": 1996,
+      "income_bracket": "30k_60k",
+      "income_monthly_paise": 4500000,
+      "region": "IN-DEL",
+      "pan_card": "EFGKD5678E"
+    },
+    "score": {
+      "score": 690,
+      "previous_score_1mo": 688,
+      "previous_score_3mo": 685,
+      "band": "Fair",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_005_1",
+        "display_name": "OneCard Metal",
+        "account_type": "credit_card",
+        "balance_paise": 260000,
+        "credit_limit_paise": 800000,
+        "monthly_payment_paise": 13000,
+        "opened_date": "2026-02-14",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [
+      {"inquiry_id": "inq_005_1", "creditor_name": "OneCard", "inquiry_date": "2026-02-01", "inquiry_type": "hard"}
+    ],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_006",
+      "first_name": "Divya",
+      "dob_year": 1988,
+      "income_bracket": "60k_100k",
+      "income_monthly_paise": 8200000,
+      "region": "IN-PUN",
+      "pan_card": "FGHPJ6789F"
+    },
+    "score": {
+      "score": 762,
+      "previous_score_1mo": 760,
+      "previous_score_3mo": 758,
+      "band": "Very Good",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_006_1",
+        "display_name": "Amex Membership Rewards",
+        "account_type": "credit_card",
+        "balance_paise": 0,
+        "credit_limit_paise": 4000000,
+        "monthly_payment_paise": 0,
+        "opened_date": "2016-07-22",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_006_2",
+        "display_name": "SBI Elite",
+        "account_type": "credit_card",
+        "balance_paise": 0,
+        "credit_limit_paise": 1500000,
+        "monthly_payment_paise": 0,
+        "opened_date": "2020-03-11",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_007",
+      "first_name": "Rohan",
+      "dob_year": 1983,
+      "income_bracket": "60k_100k",
+      "income_monthly_paise": 6800000,
+      "region": "IN-CHE",
+      "pan_card": "GHIPK7890G"
+    },
+    "score": {
+      "score": 702,
+      "previous_score_1mo": 700,
+      "previous_score_3mo": 698,
+      "band": "Good",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_007_1",
+        "display_name": "HDFC Two-Wheeler Loan",
+        "account_type": "installment_loan",
+        "balance_paise": 4200000,
+        "credit_limit_paise": null,
+        "monthly_payment_paise": 420000,
+        "opened_date": "2023-05-19",
+        "status": "open",
+        "is_revolving": false,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_007_2",
+        "display_name": "Avanse Education Loan",
+        "account_type": "student_loan",
+        "balance_paise": 18500000,
+        "credit_limit_paise": null,
+        "monthly_payment_paise": 1150000,
+        "opened_date": "2020-08-03",
+        "status": "open",
+        "is_revolving": false,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_008",
+      "first_name": "Sana",
+      "dob_year": 2003,
+      "income_bracket": "0_30k",
+      "income_monthly_paise": 2200000,
+      "region": "IN-LKO",
+      "pan_card": "HIJPL8901H"
+    },
+    "score": {
+      "score": 542,
+      "previous_score_1mo": null,
+      "previous_score_3mo": null,
+      "band": "Poor",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [],
+    "inquiries": [],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_009",
+      "first_name": "Vikram",
+      "dob_year": 1979,
+      "income_bracket": "100k_150k",
+      "income_monthly_paise": 12500000,
+      "region": "IN-AMD",
+      "pan_card": "IJKPM9012I"
+    },
+    "score": {
+      "score": 668,
+      "previous_score_1mo": 664,
+      "previous_score_3mo": 666,
+      "band": "Fair",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_009_1",
+        "display_name": "Standard Chartered Ultimate",
+        "account_type": "credit_card",
+        "balance_paise": 1450000,
+        "credit_limit_paise": 3500000,
+        "monthly_payment_paise": 72500,
+        "opened_date": "2014-12-01",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_010",
+      "first_name": "Meera",
+      "dob_year": 1975,
+      "income_bracket": "150k_plus",
+      "income_monthly_paise": 18000000,
+      "region": "IN-MUM",
+      "pan_card": "JKLPN0123J"
+    },
+    "score": {
+      "score": 598,
+      "previous_score_1mo": 602,
+      "previous_score_3mo": 640,
+      "band": "Fair",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_010_1",
+        "display_name": "HSBC Visa Platinum",
+        "account_type": "credit_card",
+        "balance_paise": 2800000,
+        "credit_limit_paise": 4000000,
+        "monthly_payment_paise": 140000,
+        "opened_date": "2012-03-08",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [],
+    "public_records": [
+      {
+        "record_id": "pr_010_1",
+        "record_type": "tax_lien",
+        "filed_date": "2023-09-14",
+        "amount_paise": 47500000,
+        "status": "active",
+        "jurisdiction": "Income Tax Department, Mumbai"
+      }
+    ]
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_011",
+      "first_name": "Arjun",
+      "dob_year": 1981,
+      "income_bracket": "30k_60k",
+      "income_monthly_paise": 5200000,
+      "region": "IN-JAI",
+      "pan_card": "KLMPO1234K"
+    },
+    "score": {
+      "score": 486,
+      "previous_score_1mo": 490,
+      "previous_score_3mo": 495,
+      "band": "Poor",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_011_1",
+        "display_name": "Federal Bank Celesta",
+        "account_type": "credit_card",
+        "balance_paise": 980000,
+        "credit_limit_paise": 1000000,
+        "monthly_payment_paise": 49000,
+        "opened_date": "2013-06-25",
+        "status": "delinquent",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,3,3,3,2,1,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [],
+    "public_records": [
+      {
+        "record_id": "pr_011_1",
+        "record_type": "bankruptcy",
+        "filed_date": "2022-04-11",
+        "amount_paise": 125000000,
+        "status": "discharged",
+        "jurisdiction": "NCLT Jaipur"
+      }
+    ]
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_012",
+      "first_name": "Farah",
+      "dob_year": 1994,
+      "income_bracket": "30k_60k",
+      "income_monthly_paise": 4800000,
+      "region": "IN-HYD",
+      "pan_card": "LMNPP2345L"
+    },
+    "score": {
+      "score": 655,
+      "previous_score_1mo": 652,
+      "previous_score_3mo": 650,
+      "band": "Fair",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_012_1",
+        "display_name": "Slice Super Card",
+        "account_type": "credit_card",
+        "balance_paise": 320000,
+        "credit_limit_paise": 1000000,
+        "monthly_payment_paise": 16000,
+        "opened_date": "2022-10-30",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [
+      {
+        "collection_id": "col_012_1",
+        "original_creditor": "Apollo Hospitals",
+        "collection_agency": "Medi Recovery Partners",
+        "balance_paise": 675000,
+        "opened_date": "2024-11-08",
+        "status": "open",
+        "is_past_sol": false,
+        "is_disputable": true,
+        "is_medical": true
+      },
+      {
+        "collection_id": "col_012_2",
+        "original_creditor": "Tata Play",
+        "collection_agency": "Nexus Collections",
+        "balance_paise": 42000,
+        "opened_date": "2025-03-19",
+        "status": "paid",
+        "is_past_sol": false,
+        "is_disputable": false,
+        "is_medical": false
+      }
+    ],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_013",
+      "first_name": "Kabir",
+      "dob_year": 1987,
+      "income_bracket": "60k_100k",
+      "income_monthly_paise": 7000000,
+      "region": "IN-BLR",
+      "pan_card": "MNOPQ3456M"
+    },
+    "score": {
+      "score": 708,
+      "previous_score_1mo": 706,
+      "previous_score_3mo": 704,
+      "band": "Good",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_013_1",
+        "display_name": "ICICI Coral",
+        "account_type": "credit_card",
+        "balance_paise": 560000,
+        "credit_limit_paise": 2000000,
+        "monthly_payment_paise": 28000,
+        "opened_date": "2019-08-14",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_013_2",
+        "display_name": "Tata Capital Personal Loan",
+        "account_type": "personal_loan",
+        "balance_paise": 62000000,
+        "credit_limit_paise": null,
+        "monthly_payment_paise": 2600000,
+        "opened_date": "2025-01-20",
+        "status": "open",
+        "is_revolving": false,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_014",
+      "first_name": "Tara",
+      "dob_year": 1980,
+      "income_bracket": "150k_plus",
+      "income_monthly_paise": 22000000,
+      "region": "IN-DEL",
+      "pan_card": "NOPPR4567N"
+    },
+    "score": {
+      "score": 822,
+      "previous_score_1mo": 820,
+      "previous_score_3mo": 818,
+      "band": "Excellent",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_014_1",
+        "display_name": "Amex Platinum Charge",
+        "account_type": "credit_card",
+        "balance_paise": 850000,
+        "credit_limit_paise": 15000000,
+        "monthly_payment_paise": 42500,
+        "opened_date": "2009-05-06",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_014_2",
+        "display_name": "HDFC Home Loan",
+        "account_type": "mortgage",
+        "balance_paise": 410000000,
+        "credit_limit_paise": null,
+        "monthly_payment_paise": 3900000,
+        "opened_date": "2015-02-17",
+        "status": "open",
+        "is_revolving": false,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_015",
+      "first_name": "Dev",
+      "dob_year": 1991,
+      "income_bracket": "100k_150k",
+      "income_monthly_paise": 10500000,
+      "region": "IN-PUN",
+      "pan_card": "OPQPS5678O"
+    },
+    "score": {
+      "score": 776,
+      "previous_score_1mo": 772,
+      "previous_score_3mo": 768,
+      "band": "Very Good",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_015_1",
+        "display_name": "Axis Magnus",
+        "account_type": "credit_card",
+        "balance_paise": 1100000,
+        "credit_limit_paise": 6000000,
+        "monthly_payment_paise": 55000,
+        "opened_date": "2017-11-09",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_015_2",
+        "display_name": "Hero FinCorp Auto Loan",
+        "account_type": "auto_loan",
+        "balance_paise": 28000000,
+        "credit_limit_paise": null,
+        "monthly_payment_paise": 1450000,
+        "opened_date": "2024-06-21",
+        "status": "open",
+        "is_revolving": false,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_016",
+      "first_name": "Nisha",
+      "dob_year": 1993,
+      "income_bracket": "60k_100k",
+      "income_monthly_paise": 7800000,
+      "region": "IN-KOL",
+      "pan_card": "PQRPT6789P"
+    },
+    "score": {
+      "score": 694,
+      "previous_score_1mo": 700,
+      "previous_score_3mo": 712,
+      "band": "Fair",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_016_1",
+        "display_name": "AU Small Finance LIT",
+        "account_type": "credit_card",
+        "balance_paise": 890000,
+        "credit_limit_paise": 1200000,
+        "monthly_payment_paise": 44500,
+        "opened_date": "2021-07-05",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [
+      {"inquiry_id": "inq_016_1", "creditor_name": "HDFC Bank", "inquiry_date": "2026-06-10", "inquiry_type": "hard"},
+      {"inquiry_id": "inq_016_2", "creditor_name": "ICICI Bank", "inquiry_date": "2026-06-18", "inquiry_type": "hard"},
+      {"inquiry_id": "inq_016_3", "creditor_name": "Axis Bank", "inquiry_date": "2026-06-21", "inquiry_type": "hard"},
+      {"inquiry_id": "inq_016_4", "creditor_name": "Bank of Baroda", "inquiry_date": "2026-05-02", "inquiry_type": "soft"}
+    ],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_017",
+      "first_name": "Aman",
+      "dob_year": 1986,
+      "income_bracket": "100k_150k",
+      "income_monthly_paise": 11800000,
+      "region": "IN-HYD",
+      "pan_card": "QRSPU7890Q"
+    },
+    "score": {
+      "score": 734,
+      "previous_score_1mo": 730,
+      "previous_score_3mo": 728,
+      "band": "Good",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_017_1",
+        "display_name": "SBI Cashback",
+        "account_type": "credit_card",
+        "balance_paise": 620000,
+        "credit_limit_paise": 2500000,
+        "monthly_payment_paise": 31000,
+        "opened_date": "2018-09-27",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_017_2",
+        "display_name": "Bank of Baroda Secured Card",
+        "account_type": "secured_card",
+        "balance_paise": 45000,
+        "credit_limit_paise": 500000,
+        "monthly_payment_paise": 2250,
+        "opened_date": "2022-01-14",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_017_3",
+        "display_name": "PNB Housing Loan",
+        "account_type": "mortgage",
+        "balance_paise": 285000000,
+        "credit_limit_paise": null,
+        "monthly_payment_paise": 2450000,
+        "opened_date": "2020-04-02",
+        "status": "open",
+        "is_revolving": false,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_017_4",
+        "display_name": "Muthoot Gold Loan",
+        "account_type": "installment_loan",
+        "balance_paise": 9500000,
+        "credit_limit_paise": null,
+        "monthly_payment_paise": 480000,
+        "opened_date": "2025-09-11",
+        "status": "open",
+        "is_revolving": false,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_018",
+      "first_name": "Ishita",
+      "dob_year": 1998,
+      "income_bracket": "0_30k",
+      "income_monthly_paise": 2800000,
+      "region": "IN-IND",
+      "pan_card": "RSTPV8901R"
+    },
+    "score": {
+      "score": 521,
+      "previous_score_1mo": 528,
+      "previous_score_3mo": 556,
+      "band": "Poor",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_018_1",
+        "display_name": "RBL Shoprite",
+        "account_type": "credit_card",
+        "balance_paise": 740000,
+        "credit_limit_paise": 800000,
+        "monthly_payment_paise": 37000,
+        "opened_date": "2023-02-08",
+        "status": "delinquent",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,0]
+      },
+      {
+        "account_id": "acc_018_2",
+        "display_name": "Fibe Personal Loan",
+        "account_type": "personal_loan",
+        "balance_paise": 3400000,
+        "credit_limit_paise": null,
+        "monthly_payment_paise": 620000,
+        "opened_date": "2025-06-15",
+        "status": "open",
+        "is_revolving": false,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [
+      {"inquiry_id": "inq_018_1", "creditor_name": "Fibe", "inquiry_date": "2026-04-28", "inquiry_type": "hard"},
+      {"inquiry_id": "inq_018_2", "creditor_name": "KreditBee", "inquiry_date": "2026-07-02", "inquiry_type": "hard"}
+    ],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_019",
+      "first_name": "Zoya",
+      "dob_year": 2000,
+      "income_bracket": "30k_60k",
+      "income_monthly_paise": 3600000,
+      "region": "IN-BLR",
+      "pan_card": "STUPW9012S"
+    },
+    "score": {
+      "score": 683,
+      "previous_score_1mo": 679,
+      "previous_score_3mo": 674,
+      "band": "Fair",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_019_1",
+        "display_name": "Kiwi RuPay Card",
+        "account_type": "credit_card",
+        "balance_paise": 145000,
+        "credit_limit_paise": 600000,
+        "monthly_payment_paise": 7250,
+        "opened_date": "2025-01-16",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_020",
+      "first_name": "Karan",
+      "dob_year": 1977,
+      "income_bracket": "150k_plus",
+      "income_monthly_paise": 16500000,
+      "region": "IN-MUM",
+      "pan_card": "TUVPX0123T"
+    },
+    "score": {
+      "score": 794,
+      "previous_score_1mo": 792,
+      "previous_score_3mo": 790,
+      "band": "Very Good",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_020_1",
+        "display_name": "Citi Prestige",
+        "account_type": "credit_card",
+        "balance_paise": 0,
+        "credit_limit_paise": 8000000,
+        "monthly_payment_paise": 0,
+        "opened_date": "2011-01-19",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_020_2",
+        "display_name": "HDFC Diners Club Black",
+        "account_type": "credit_card",
+        "balance_paise": 460000,
+        "credit_limit_paise": 10000000,
+        "monthly_payment_paise": 23000,
+        "opened_date": "2014-08-23",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_021",
+      "first_name": "Riya",
+      "dob_year": 1989,
+      "income_bracket": "30k_60k",
+      "income_monthly_paise": 5600000,
+      "region": "IN-NAG",
+      "pan_card": "UVWPY1234U"
+    },
+    "score": {
+      "score": 574,
+      "previous_score_1mo": 570,
+      "previous_score_3mo": 566,
+      "band": "Poor",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_021_1",
+        "display_name": "IDFC First Millennia",
+        "account_type": "credit_card",
+        "balance_paise": 505000,
+        "credit_limit_paise": 700000,
+        "monthly_payment_paise": 25250,
+        "opened_date": "2020-11-27",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [
+      {
+        "collection_id": "col_021_1",
+        "original_creditor": "BSNL Broadband",
+        "collection_agency": "Sahyog Recovery",
+        "balance_paise": 58000,
+        "opened_date": "2017-06-04",
+        "status": "open",
+        "is_past_sol": true,
+        "is_disputable": true,
+        "is_medical": false
+      },
+      {
+        "collection_id": "col_021_2",
+        "original_creditor": "Bajaj Finance EMI Card",
+        "collection_agency": "Prime Asset Recovery",
+        "balance_paise": 234000,
+        "opened_date": "2025-08-12",
+        "status": "open",
+        "is_past_sol": false,
+        "is_disputable": false,
+        "is_medical": false
+      }
+    ],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_022",
+      "first_name": "Sameer",
+      "dob_year": 1995,
+      "income_bracket": "30k_60k",
+      "income_monthly_paise": 4200000,
+      "region": "IN-SUR",
+      "pan_card": "VWXPZ2345V"
+    },
+    "score": {
+      "score": 721,
+      "previous_score_1mo": null,
+      "previous_score_3mo": null,
+      "band": "Good",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_022_1",
+        "display_name": "Canara Bank RuPay Select",
+        "account_type": "credit_card",
+        "balance_paise": 180000,
+        "credit_limit_paise": 900000,
+        "monthly_payment_paise": 9000,
+        "opened_date": "2022-04-19",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [],
+    "public_records": []
+  },
+
+  {
+    "customer": {
+      "customer_id": "cust_023",
+      "first_name": "Anaya",
+      "dob_year": 1984,
+      "income_bracket": "60k_100k",
+      "income_monthly_paise": 9200000,
+      "region": "IN-DEL",
+      "pan_card": "WXYQA3456W"
+    },
+    "score": {
+      "score": 641,
+      "previous_score_1mo": 648,
+      "previous_score_3mo": 652,
+      "band": "Fair",
+      "score_as_of_date": "2026-07-01"
+    },
+    "accounts": [
+      {
+        "account_id": "acc_023_1",
+        "display_name": "Yes Bank Marquee",
+        "account_type": "credit_card",
+        "balance_paise": 2850000,
+        "credit_limit_paise": 3000000,
+        "monthly_payment_paise": 142500,
+        "opened_date": "2019-02-11",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      },
+      {
+        "account_id": "acc_023_2",
+        "display_name": "Paytm Postpaid",
+        "account_type": "credit_card",
+        "balance_paise": 12000,
+        "credit_limit_paise": 400000,
+        "monthly_payment_paise": 600,
+        "opened_date": "2024-05-08",
+        "status": "open",
+        "is_revolving": true,
+        "payment_history": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+      }
+    ],
+    "inquiries": [],
+    "collections": [],
+    "public_records": []
+  }
+]

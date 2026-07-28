@@ -1,4 +1,5 @@
 from logging.config import fileConfig
+import os
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
@@ -11,6 +12,16 @@ from app.models import Base
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Honour DATABASE_URL when it is set, overriding alembic.ini's sqlalchemy.url.
+#
+# Without this, alembic always targets the URL hardcoded in alembic.ini
+# (sqlite:///./cibil_coach.db) no matter what the caller configured. That makes
+# it impossible for tests or alternate environments to point migrations at a
+# different database, and risks a test run mutating the real database.
+_database_url = os.getenv("DATABASE_URL")
+if _database_url:
+    config.set_main_option("sqlalchemy.url", _database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

@@ -1,12 +1,20 @@
 """SQLAlchemy ORM models for CIBIL Credit Coach.
 
-Normalized schema from cibil_data.json:
+Customer schema (seeded from cibil_data.json):
   - customers: PAN (primary), customer_id, demographics
   - scores: linked to customer, score metrics and trends
   - accounts: revolving and installment accounts
   - inquiries: credit inquiries
   - collections: collections and chargeoffs
   - public_records: tax liens, bankruptcies, etc.
+
+Knowledge base schema (seeded from Frontend_docs/label_kb.json):
+  - kb_labels: the 32 labels' coaching content, keyed by label_id
+  - kb_mitigation_steps: ordered remediation steps per label
+  - kb_facts_to_cite: fact names to surface per label
+  - kb_reason_codes: CIBIL reason codes per label
+  - kb_sources: citation title/URL pairs per label
+  - kb_meta: the KB's top-level conventions (band ranges, priority legend)
 """
 
 from datetime import date, datetime
@@ -182,3 +190,137 @@ class PublicRecordModel(Base):
     
     # Relationship
     customer = relationship("CustomerModel", back_populates="public_records")
+
+
+# ============================================================================
+# KNOWLEDGE BASE TABLES
+#
+# The label knowledge base (Frontend_docs/label_kb.json) lives in the same
+# database as the customer data, in its own set of tables. `label_id` is the
+# natural key throughout.
+#
+# Child rows are stored in separate tables rather than JSON columns so that
+# the Labels Fired panel can filter by category/severity in SQL, and so that
+# mitigation steps retain their authored order via `step_order`.
+# ============================================================================
+
+
+class KBLabelModel(Base):
+    """A single label's coaching content."""
+    __tablename__ = "kb_labels"
+
+    label_id = Column(String(100), primary_key=True)
+
+    # Classification
+    display_name = Column(String(255), nullable=False)
+    category = Column(String(50), nullable=False, index=True)
+    severity = Column(String(50), nullable=False, index=True)
+    priority_rank = Column(Integer, nullable=False, index=True)
+
+    # Rule metadata. NOTE: these are descriptive only. The authority for which
+    # labels fire is RULE_TABLE in app/rule_engine.py, which is deliberately
+    # left untouched by the DB migration.
+    fact_id = Column(String(100), nullable=False)
+    condition = Column(Text, nullable=False)
+    condition_human = Column(Text, nullable=False)
+
+    # Coaching copy
+    what_it_means_cibil = Column(Text, nullable=False)
+    why_it_matters = Column(Text, nullable=False)
+    personalized_response_template = Column(Text, nullable=False)
+
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships. order_by keeps authored sequence stable on read.
+    mitigation_steps = relationship(
+        "KBMitigationStepModel",
+        back_populates="label",
+        cascade="all, delete-orphan",
+        order_by="KBMitigationStepModel.step_order",
+    )
+    facts_to_cite = relationship(
+        "KBFactToCiteModel",
+        back_populates="label",
+        cascade="all, delete-orphan",
+        order_by="KBFactToCiteModel.id",
+    )
+    reason_codes = relationship(
+        "KBReasonCodeModel",
+        back_populates="label",
+        cascade="all, delete-orphan",
+        order_by="KBReasonCodeModel.id",
+    )
+    sources = relationship(
+        "KBSourceModel",
+        back_populates="label",
+        cascade="all, delete-orphan",
+        order_by="KBSourceModel.id",
+    )
+
+
+class KBMitigationStepModel(Base):
+    """An ordered remediation step for a label."""
+    __tablename__ = "kb_mitigation_steps"
+
+    id = Column(Integer, primary_key=True)
+    label_id = Column(String(100), ForeignKey("kb_labels.label_id"), nullable=False, index=True)
+
+    step_order = Column(Integer, nullable=False)
+    step_text = Column(Text, nullable=False)
+
+    label = relationship("KBLabelModel", back_populates="mitigation_steps")
+
+
+class KBFactToCiteModel(Base):
+    """A fact name the agent should surface when this label fires."""
+    __tablename__ = "kb_facts_to_cite"
+
+    id = Column(Integer, primary_key=True)
+    label_id = Column(String(100), ForeignKey("kb_labels.label_id"), nullable=False, index=True)
+
+    fact_name = Column(String(100), nullable=False)
+
+    label = relationship("KBLabelModel", back_populates="facts_to_cite")
+
+
+class KBReasonCodeModel(Base):
+    """A CIBIL reason code associated with this label."""
+    __tablename__ = "kb_reason_codes"
+
+    id = Column(Integer, primary_key=True)
+    label_id = Column(String(100), ForeignKey("kb_labels.label_id"), nullable=False, index=True)
+
+    reason_code = Column(String(20), nullable=False)
+
+    label = relationship("KBLabelModel", back_populates="reason_codes")
+
+
+class KBSourceModel(Base):
+    """A citation source (title + URL) for a label."""
+    __tablename__ = "kb_sources"
+
+    id = Column(Integer, primary_key=True)
+    label_id = Column(String(100), ForeignKey("kb_labels.label_id"), nullable=False, index=True)
+
+    title = Column(String(500), nullable=False)
+    url = Column(String(1000), nullable=False)
+
+    label = relationship("KBLabelModel", back_populates="sources")
+
+
+class KBMetaModel(Base):
+    """Key-value store for the KB's top-level `conventions` block.
+
+    Holds the authoritative CIBIL band ranges, priority legend, and currency
+    note so the frontend and API read band boundaries from one place.
+    Values are stored as JSON to accommodate both scalars and nested objects.
+    """
+    __tablename__ = "kb_meta"
+
+    key = Column(String(100), primary_key=True)
+    value = Column(JSON, nullable=False)
+
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

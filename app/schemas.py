@@ -219,6 +219,8 @@ class FactSet(BaseModel):
     overall_utilization: float
     utilization_concentration: float  # Herfindahl-Hirschman Index
     single_card_limit_share: float  # Largest card / total limit
+    max_single_card_utilization: float  # Highest per-card utilisation
+    n_accounts_over_90pct: int  # Revolving accounts above 90% utilisation
 
     # §4 Payment history (24 months)
     n_lates_30_24mo: int
@@ -226,18 +228,29 @@ class FactSet(BaseModel):
     n_lates_90_24mo: int
     worst_late_status: int  # 0, 1, 2, or 3
     most_recent_late_period: Optional[str] = None
+    worst_status_recent_12mo: int = 0  # Max status in the last 12 months
+    has_recent_late_6mo: bool = False  # Any late in the last 6 months
+    n_recent_lates: int = 0  # Count of lates in the last 6 months
+    pct_payments_on_time: float = 1.0  # On-time entries / total entries
+    current_streak_months: int = 0  # Consecutive clean months, most recent first
 
     # §5 Inquiries
     inquiries_6mo: int
     inquiries_24mo: int
-    is_rate_shopping: bool  # Clustered inquiries in 14-30d window
+    is_rate_shopping: bool  # Clustered hard inquiries within a 30-day window
     credit_seeking_pattern: bool  # 3+ inquiries in 6 months
+    n_hard_inquiries_3mo: int = 0
+    n_hard_inquiries_6mo: int = 0
+    n_hard_inquiries_12mo: int = 0
 
     # §6 Collections
     n_collections: int
     n_collections_past_sol: int  # Past 7-year reporting window
     n_collections_disputed: int
     n_collections_paid_still_reporting: int
+    total_collections_balance_paise: int = 0
+    has_medical_collections: bool = False
+    n_paid_collections_24mo: int = 0
 
     # §7 Public records (India-specific)
     has_tax_lien: bool
@@ -252,6 +265,10 @@ class FactSet(BaseModel):
     has_no_revolving_credit: bool
     n_unused_revolving_cards: int
     single_card_dependency: bool  # All revolving on one card
+    n_distinct_account_types: int = 0
+    oldest_revolving_age_months: int = 0
+    n_accounts_opened_6mo: int = 0
+    n_accounts_opened_12mo: int = 0
 
     # §9 Debt-to-Income (DTI)
     total_monthly_obligations_paise: int
@@ -259,6 +276,7 @@ class FactSet(BaseModel):
     dti_ratio: float
     is_high_dti: bool  # DTI > 0.36
     is_severe_dti: bool  # DTI > 0.50
+    dti_category: Literal["low", "moderate", "high", "severe"] = "low"
 
     # §10 Derived features
     credit_mix_score: int  # 0-100 heuristic
@@ -266,6 +284,7 @@ class FactSet(BaseModel):
 
     # §11 Metadata
     as_of_date: date
+    score_as_of_date: Optional[date] = None
     facts_computed_at: datetime
 
 
