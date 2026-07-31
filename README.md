@@ -16,9 +16,8 @@ Enter your PAN and monthly income. Get a full picture of your credit health and 
 
 **Priya, 28.** Marketing manager. Monthly income ₹75,000.
 
-> "I always pay on time, so why did my score drop from 740 to 715?"
 
-She opened the app, typed her PAN, and got this:
+She opened the app, typed her PAN,Monthly Income and got this:
 
 ```
 Score:               715 / 900  (Good)
