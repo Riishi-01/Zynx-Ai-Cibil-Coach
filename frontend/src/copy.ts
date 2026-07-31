@@ -28,6 +28,13 @@ export const COPY = {
     emptyNoResponse: 'No analysis received.',
     emptyNoResponseHint: 'You can retry — the canvas may still be useful.',
     crunching: 'Crunching the numbers…',
+    composerPlaceholder: 'Ask about your credit report…',
+    sendAria: 'Send message',
+    stopAria: 'Stop generating',
+    /** Returned by /api/chat when the question is outside the credit scope. */
+    outOfScope:
+      "I'm your credit coach, so I can only help with credit report questions — score, utilization, payment history, collections, and similar. I can't advise on investments, career, housing, or tax planning. Want to ask something credit-related instead?",
+    outOfScopeShort: "That's outside what I cover as a credit coach.",
   },
   analysisFooter: {
     /** Display name shown in the footer — matches the actual model used. */

@@ -204,7 +204,15 @@ export interface Citation {
   fact_ids: string[];
 }
 
-// --------------------------------------------------------------- chat ----
+/**
+ * A citation extracted from a follow-up chat reply. Distinct from the
+ * analyze-flow Citation — chat citations surface inline `[label_id]` /
+ * `[Source: title]` markers rather than numeric fact traces.
+ */
+export interface ChatCitation {
+  label_id?: string;
+  source_title?: string;
+}
 
 export interface ChatHistoryTurn {
   role: 'user' | 'assistant';
@@ -234,5 +242,8 @@ export type AnalyzeSseEvent =
 
 export type ChatSseEvent =
   | { event: 'token'; data: { content: string } }
+  | { event: 'guardrail'; data: { verdict: string; reason: string } }
+  | { event: 'replace'; data: { content: string } }
+  | { event: 'citations'; data: { citations: ChatCitation[] } }
   | { event: 'done'; data: { ok: true } }
   | { event: 'error'; data: { message: string } };

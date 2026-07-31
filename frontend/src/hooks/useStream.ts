@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
-import type { CanvasResponse, PartialCoachPlan, PlanMetadata } from '../types';
+import type { CanvasResponse, ChatCitation, PartialCoachPlan, PlanMetadata } from '../types';
 
 export interface StreamState {
   /** Accumulated markdown text (for /api/chat token events). */
@@ -21,6 +21,9 @@ type SseHandler = {
   onPlanDelta?: (data: PartialCoachPlan) => void;
   onMetadata?: (data: PlanMetadata) => void;
   onToken?: (content: string) => void;
+  onCitations?: (citations: ChatCitation[]) => void;
+  onGuardrail?: (info: { verdict: string; reason: string }) => void;
+  onReplace?: (content: string) => void;
   onDone?: () => void;
   onError?: (message: string) => void;
 };
@@ -119,9 +122,25 @@ export function useStream() {
                 setState((s) => ({ ...s, text: s.text + (parsed.content ?? '') }));
                 handlers?.onToken?.(parsed.content ?? '');
                 break;
-              case 'citations':
-                // Citations are informational; stored on state for later rendering.
+              case 'citations': {
+                const list = Array.isArray(parsed.citations) ? parsed.citations : [];
+                handlers?.onCitations?.(list);
                 break;
+              }
+              case 'guardrail': {
+                const verdict = typeof parsed.verdict === 'string' ? parsed.verdict : 'unknown';
+                const reason = typeof parsed.reason === 'string' ? parsed.reason : 'unknown';
+                handlers?.onGuardrail?.({ verdict, reason });
+                break;
+              }
+              case 'replace': {
+                const replacement =
+                  typeof parsed.content === 'string'
+                    ? parsed.content
+                    : (parsed.content?.content ?? '');
+                handlers?.onReplace?.(replacement);
+                break;
+              }
               case 'done':
                 setState((s) => ({ ...s, streaming: false, done: true }));
                 handlers?.onDone?.();

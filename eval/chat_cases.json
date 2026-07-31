@@ -1,0 +1,111 @@
+{
+  "schema_version": "2.0.0",
+  "description": "Chat RAG eval cases for /api/chat (SSE).",
+  "cases": [
+    {
+      "id": "rate-shopping",
+      "question": "What is rate shopping and how does it affect my score?",
+      "pan": "ABCPS1234A",
+      "in_scope": true,
+      "expected_label_ids": ["recent_inquiries", "credit_seeking_pattern"],
+      "expected_keywords": ["cluster", "30 days", "FCRA"],
+      "notes": "Re-anchor the answer in Indian reporting terminology."
+    },
+    {
+      "id": "oldest-card",
+      "question": "Should I close my oldest credit card?",
+      "pan": "ABCPS1234A",
+      "in_scope": true,
+      "expected_label_ids": ["oldest_card_at_risk"],
+      "expected_keywords": ["oldest", "history", "do not close"],
+      "notes": "Anjali's HDFC Millennia is her oldest card."
+    },
+    {
+      "id": "late-payment-window",
+      "question": "How long does a 60-day late payment stay on my CIBIL report?",
+      "pan": "ABCPS1234A",
+      "in_scope": true,
+      "expected_label_ids": ["serious_delinquency", "recent_late_payment"],
+      "expected_keywords": ["7 years"],
+      "notes": "Use Indian 7-year reporting window (CICRA)."
+    },
+    {
+      "id": "utilization-threshold",
+      "question": "What is a good credit utilization ratio?",
+      "pan": "ABCPS1234A",
+      "in_scope": true,
+      "expected_label_ids": ["high_utilization", "low_utilization"],
+      "expected_keywords": ["30%"],
+      "notes": "30% is CIBIL's first knee."
+    },
+    {
+      "id": "maxed-out-meaning",
+      "question": "What does it mean when my card is maxed out?",
+      "pan": "ABCPS1234A",
+      "in_scope": true,
+      "expected_label_ids": ["maxed_out", "maxed_out_account"],
+      "expected_keywords": ["90%"],
+      "notes": "Above 90% triggers the maxed-out penalty."
+    },
+    {
+      "id": "hard-inquiry-explain",
+      "question": "What's a hard inquiry?",
+      "pan": "ABCPS1234A",
+      "in_scope": true,
+      "expected_label_ids": ["recent_inquiries"],
+      "expected_keywords": ["inquiry", "score"],
+      "notes": "Skip the FCRA US-only framing."
+    },
+    {
+      "id": "thin-file-secure-card",
+      "question": "How do I start building credit from scratch?",
+      "pan": "ABCDE0000F",
+      "in_scope": true,
+      "expected_label_ids": ["thin_file", "extreme_thin_file"],
+      "expected_keywords": ["secured", "card"],
+      "notes": "Reference Indian secured card products."
+    },
+    {
+      "id": "anjali-new-card",
+      "question": "Should I get a new credit card right now?",
+      "pan": "ABCPS1234A",
+      "in_scope": true,
+      "expected_label_ids": ["credit_seeking_pattern"],
+      "expected_keywords": ["inquiries"],
+      "notes": "Anjali has recent inquiries."
+    },
+    {
+      "id": "anjali-close-card",
+      "question": "Should I close the SBI card?",
+      "pan": "ABCPS1234A",
+      "in_scope": true,
+      "expected_label_ids": ["oldest_card_at_risk"],
+      "expected_keywords": ["oldest"],
+      "notes": "SBI is not Anjali's oldest card — pull HDFC Millennia data."
+    },
+    {
+      "id": "out-of-scope-invest",
+      "question": "Should I invest in index funds?",
+      "pan": "ABCPS1234A",
+      "in_scope": false,
+      "expected_keywords": ["credit coach"],
+      "notes": "Guardrail redirect expected."
+    },
+    {
+      "id": "out-of-scope-career",
+      "question": "What career should I pursue?",
+      "pan": "ABCPS1234A",
+      "in_scope": false,
+      "expected_keywords": ["credit coach"],
+      "notes": "Guardrail redirect expected."
+    },
+    {
+      "id": "out-of-scope-housing",
+      "question": "Should I rent or buy a house?",
+      "pan": "ABCPS1234A",
+      "in_scope": false,
+      "expected_keywords": ["credit coach"],
+      "notes": "Guardrail redirect expected."
+    }
+  ]
+}

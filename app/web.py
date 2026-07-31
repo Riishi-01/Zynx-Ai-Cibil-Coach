@@ -17,6 +17,10 @@ from app.rule_engine import fire_labels
 from app.prompt_builder import build_prompt, build_chat_prompt
 from app.llm_stream import astream_plan, astream_chat
 from app.citations import cite_plan
+from app.chat_rag import TOP_K as CHAT_TOP_K, retrieve
+from app.citations_chat import ChatCitation, extract_citations
+from app.embeddings import Embedder
+from app.guardrails import contains_out_of_scope_terms, is_in_scope
 from app.label_service import build_labels_response, run_pipeline
 from app.canvas_service import build_canvas_response
 from app.api_schemas import LabelsResponse, CanvasResponse
@@ -125,6 +129,37 @@ def _sse(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
 
 
+CHAT_OUT_OF_SCOPE_MESSAGE = (
+    "I'm your credit coach, so I can only help with credit report "
+    "questions — score, utilization, payment history, collections, and "
+    "similar. I can't advise on investments, career, housing, or tax "
+    "planning. Want to ask something credit-related instead?"
+)
+
+CHAT_MAX_QUESTION_CHARS = 1000
+CHAT_MAX_HISTORY_TURNS = 6
+
+_embedder: "Embedder | None" = None
+
+
+def _get_embedder() -> Embedder:
+    """Lazily construct a single Embedder per cold-start.
+
+    Importing the OpenAI SDK is deferred until the first chat request so the
+    module stays importable without ``OPENAI_API_KEY`` (tests rely on this).
+    """
+    global _embedder
+    if _embedder is None:
+        _embedder = Embedder()
+    return _embedder
+
+
+def _reset_embedder_for_tests() -> None:
+    """Test seam — drop the cached embedder so monkeypatched fakes take effect."""
+    global _embedder
+    _embedder = None
+
+
 # Note: the Vite-built frontend in `frontend/dist/` is served by Vercel's CDN
 # via the `outputDirectory` in vercel.json, NOT by this FastAPI app. Keeping
 # `/` and `/assets` out of the function avoids dead code at cold-start and
@@ -203,12 +238,69 @@ async def analyze_customer(request: Request):
     )
 
 
+def _normalize_history(raw_history: list) -> tuple[list[dict], str | None]:
+    """Validate the optional history list and return a trimmed version.
+
+    Returns ``(history, error)`` — exactly one is meaningful. The trimmed
+    history is capped to ``CHAT_MAX_HISTORY_TURNS`` completed pairs and
+    cleaned to ``{role, content}`` shape.
+    """
+    cleaned: list[dict] = []
+    for index, entry in enumerate(raw_history):
+        if not isinstance(entry, dict):
+            return [], f"history[{index}] must be an object"
+        role = str(entry.get("role", "")).lower()
+        if role not in {"user", "assistant"}:
+            return [], f"history[{index}].role must be 'user' or 'assistant'"
+        content = entry.get("content")
+        if not isinstance(content, str):
+            return [], f"history[{index}].content must be a string"
+        cleaned.append({"role": role, "content": content})
+    if len(cleaned) > CHAT_MAX_HISTORY_TURNS * 2:
+        cleaned = cleaned[-(CHAT_MAX_HISTORY_TURNS * 2):]
+    return cleaned, None
+
+
+async def _emit_guardrail_redirect(reason: str) -> AsyncGenerator[str, None]:
+    """Stream the fixed out-of-scope message in place of an LLM call.
+
+    Emits a guardrail metadata event, then a single ``token`` event with the
+    canonical copy, then ``done``. The frontend uses the guardrail event to
+    decide whether to render the redirect as an answer or as a transient
+    notice.
+    """
+    yield _sse(
+        "guardrail",
+        {
+            "verdict": "out_of_scope",
+            "reason": reason,
+        },
+    )
+    yield _sse("token", {"content": CHAT_OUT_OF_SCOPE_MESSAGE})
+    yield _sse("done", {"ok": True})
+
+
+async def _embed_question(question: str) -> tuple[float, ...]:
+    embedder = _get_embedder()
+    return await embedder.embed(question)
+
+
 @app.post("/api/chat")
 async def chat_followup(request: Request):
     """Answer a follow-up question, streaming markdown as SSE.
 
     Body: {"pan": ..., "income": ..., "message": "...", "history": [...], "turnstile_token": "..." (optional)}
     History entries are {"role": "user"|"assistant", "content": "..."}.
+
+    Event order::
+
+        guardrail? token* replace?  citations? done
+        (guardrail only when the question is out of scope)
+        (replace only when the post-check regex trips mid-stream)
+
+    The endpoint always returns ``text/event-stream`` 200 on success, even
+    for out-of-scope questions, so the frontend ``useStream`` parser doesn't
+    need to fork on content-type.
     """
     body = await request.json()
     await _enforce_turnstile(request, body)
@@ -217,10 +309,18 @@ async def chat_followup(request: Request):
     question = str(body.get("message", "")).strip()
     if not question:
         raise HTTPException(status_code=400, detail="message is required")
+    if len(question) > CHAT_MAX_QUESTION_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"message must be {CHAT_MAX_QUESTION_CHARS} chars or fewer",
+        )
 
-    history = body.get("history") or []
-    if not isinstance(history, list):
+    raw_history = body.get("history") or []
+    if not isinstance(raw_history, list):
         raise HTTPException(status_code=400, detail="history must be a list")
+    history, history_error = _normalize_history(raw_history)
+    if history_error:
+        raise HTTPException(status_code=400, detail=history_error)
 
     try:
         _record, sanitised, facts, fired = run_pipeline(pan, income_inr)
@@ -231,19 +331,64 @@ async def chat_followup(request: Request):
     except KBUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 
-    system_prompt, user_message = build_chat_prompt(
-        sanitised, facts, fired, question, history
-    )
-
     async def event_stream() -> AsyncGenerator[str, None]:
         try:
+            question_vec = await _embed_question(question)
+        except LLMError as exc:
+            yield _sse("error", {"message": f"Embedding failed: {exc}"})
+            return
+
+        verdict = await is_in_scope(question_vec)
+        if not verdict.in_scope:
+            async for frame in _emit_guardrail_redirect(verdict.reason):
+                yield frame
+            return
+
+        retrieved = retrieve(question_vec, k=CHAT_TOP_K)
+        retrieved_label_ids = tuple(item.label_id for item in retrieved)
+
+        system_prompt, user_message = build_chat_prompt(
+            sanitised,
+            facts,
+            fired,
+            question,
+            history,
+            retrieved,
+        )
+
+        full_answer = ""
+        replaced = False
+        try:
             async for chunk in astream_chat(system_prompt, user_message):
+                if not replaced and contains_out_of_scope_terms(full_answer + chunk):
+                    replaced = True
+                    yield _sse(
+                        "guardrail",
+                        {"verdict": "out_of_scope", "reason": "post_check"},
+                    )
+                    yield _sse("replace", {"content": CHAT_OUT_OF_SCOPE_MESSAGE})
+                    break
+                full_answer += chunk
                 yield _sse("token", {"content": chunk})
-            yield _sse("done", {"ok": True})
         except LLMError as exc:
             yield _sse("error", {"message": str(exc)})
+            return
         except Exception as exc:  # noqa: BLE001
             yield _sse("error", {"message": f"Unexpected error: {exc}"})
+            return
+
+        citations: list[ChatCitation] = []
+        if full_answer and not replaced:
+            citations = extract_citations(
+                full_answer,
+                allowed_label_ids=retrieved_label_ids,
+            )
+            yield _sse(
+                "citations",
+                {"citations": [c.to_dict() for c in citations]},
+            )
+
+        yield _sse("done", {"ok": True})
 
     return StreamingResponse(
         event_stream(),

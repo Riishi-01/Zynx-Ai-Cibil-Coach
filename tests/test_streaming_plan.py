@@ -162,6 +162,12 @@ def mock_chat_stream(monkeypatch):
             yield chunk
 
     monkeypatch.setattr(web, "astream_chat", fake_astream_chat)
+
+    class _StubEmbedder:
+        async def embed(self, text):
+            return tuple(0.0 for _ in range(1536))
+
+    monkeypatch.setattr(web, "_embedder", _StubEmbedder(), raising=False)
     return fake_astream_chat
 
 
@@ -576,6 +582,12 @@ def test_chat_rejects_non_list_history(client):
 def test_chat_error_is_reported_as_event(client, monkeypatch):
     from app import web
     from app.schemas import LLMError
+
+    class _StubEmbedder:
+        async def embed(self, text):
+            return tuple(0.0 for _ in range(1536))
+
+    monkeypatch.setattr(web, "_embedder", _StubEmbedder(), raising=False)
 
     async def failing_stream(system_prompt, user_message, model=None):
         raise LLMError("rate limited")
