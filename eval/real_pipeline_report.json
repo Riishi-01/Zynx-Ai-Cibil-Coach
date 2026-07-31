@@ -1,0 +1,395 @@
+{
+  "embedding_model": "text-embedding-3-small",
+  "embedding_dim": 1536,
+  "chunks_bundled": 32,
+  "guardrail_banks": {
+    "in": 8,
+    "out": 8
+  },
+  "queries": [
+    {
+      "id": "rate-shopping",
+      "question": "What is rate shopping and how does CIBIL dedupe it?",
+      "verdict": {
+        "in_scope": true,
+        "reason": "ambiguous",
+        "expected": "in",
+        "pass": true
+      },
+      "retrieval_top_5": [
+        {
+          "label_id": "all_cards_maxed",
+          "score": 0.0
+        },
+        {
+          "label_id": "major_delinquency",
+          "score": 0.0
+        },
+        {
+          "label_id": "maxed_out",
+          "score": 0.0
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.0
+        },
+        {
+          "label_id": "collection_past_sol",
+          "score": 0.0
+        }
+      ],
+      "answer": "Rate shopping within 14-30 days counts as a single hard inquiry for CIBIL purposes. [recent_inquiries] [Source: CIBIL Score Factors]",
+      "citations": [
+        {
+          "source_title": "CIBIL Score Factors"
+        }
+      ],
+      "expected_labels": [],
+      "cited_labels": [],
+      "keyword_present": true
+    },
+    {
+      "id": "close-oldest-card",
+      "question": "Should I close my oldest credit card to raise my score?",
+      "verdict": {
+        "in_scope": true,
+        "reason": "ambiguous",
+        "expected": "in",
+        "pass": true
+      },
+      "retrieval_top_5": [
+        {
+          "label_id": "all_cards_maxed",
+          "score": 0.0
+        },
+        {
+          "label_id": "major_delinquency",
+          "score": 0.0
+        },
+        {
+          "label_id": "maxed_out",
+          "score": 0.0
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.0
+        },
+        {
+          "label_id": "collection_past_sol",
+          "score": 0.0
+        }
+      ],
+      "answer": "Don't close your oldest card \u2014 that shortens your credit history. [oldest_card_at_risk]",
+      "citations": [],
+      "expected_labels": [],
+      "cited_labels": [],
+      "keyword_present": true
+    },
+    {
+      "id": "late-7-year",
+      "question": "How long does a 60-day late stay on my CIBIL report?",
+      "verdict": {
+        "in_scope": true,
+        "reason": "ambiguous",
+        "expected": "in",
+        "pass": true
+      },
+      "retrieval_top_5": [
+        {
+          "label_id": "all_cards_maxed",
+          "score": 0.0
+        },
+        {
+          "label_id": "major_delinquency",
+          "score": 0.0
+        },
+        {
+          "label_id": "maxed_out",
+          "score": 0.0
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.0
+        },
+        {
+          "label_id": "collection_past_sol",
+          "score": 0.0
+        }
+      ],
+      "answer": "Late payments remain on your CIBIL report for 7 years under CICRA. [recent_late_payment]",
+      "citations": [],
+      "expected_labels": [],
+      "cited_labels": [],
+      "keyword_present": true
+    },
+    {
+      "id": "utilization-30",
+      "question": "What is a good credit utilization ratio?",
+      "verdict": {
+        "in_scope": true,
+        "reason": "ambiguous",
+        "expected": "in",
+        "pass": true
+      },
+      "retrieval_top_5": [
+        {
+          "label_id": "all_cards_maxed",
+          "score": 0.0
+        },
+        {
+          "label_id": "major_delinquency",
+          "score": 0.0
+        },
+        {
+          "label_id": "maxed_out",
+          "score": 0.0
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.0
+        },
+        {
+          "label_id": "collection_past_sol",
+          "score": 0.0
+        }
+      ],
+      "answer": "Aim to keep credit utilization under 30%. [high_utilization] [Source: CIBIL Score Factors]",
+      "citations": [
+        {
+          "source_title": "CIBIL Score Factors"
+        }
+      ],
+      "expected_labels": [],
+      "cited_labels": [],
+      "keyword_present": true
+    },
+    {
+      "id": "maxed-meaning",
+      "question": "What does maxed out mean on my credit card?",
+      "verdict": {
+        "in_scope": true,
+        "reason": "ambiguous",
+        "expected": "in",
+        "pass": true
+      },
+      "retrieval_top_5": [
+        {
+          "label_id": "all_cards_maxed",
+          "score": 0.0
+        },
+        {
+          "label_id": "major_delinquency",
+          "score": 0.0
+        },
+        {
+          "label_id": "maxed_out",
+          "score": 0.0
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.0
+        },
+        {
+          "label_id": "collection_past_sol",
+          "score": 0.0
+        }
+      ],
+      "answer": "Maxed out means your balance is above 90% of the card's limit. [maxed_out] [maxed_out_account]",
+      "citations": [
+        {
+          "label_id": "maxed_out"
+        }
+      ],
+      "expected_labels": [],
+      "cited_labels": [
+        "maxed_out"
+      ],
+      "keyword_present": true
+    },
+    {
+      "id": "hard-inquiry",
+      "question": "What is a hard inquiry on my credit file?",
+      "verdict": {
+        "in_scope": true,
+        "reason": "ambiguous",
+        "expected": "in",
+        "pass": true
+      },
+      "retrieval_top_5": [
+        {
+          "label_id": "all_cards_maxed",
+          "score": 0.0
+        },
+        {
+          "label_id": "major_delinquency",
+          "score": 0.0
+        },
+        {
+          "label_id": "maxed_out",
+          "score": 0.0
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.0
+        },
+        {
+          "label_id": "collection_past_sol",
+          "score": 0.0
+        }
+      ],
+      "answer": "A hard inquiry is recorded each time you apply for new credit. [recent_inquiries]",
+      "citations": [],
+      "expected_labels": [],
+      "cited_labels": [],
+      "keyword_present": true
+    },
+    {
+      "id": "secured-card",
+      "question": "How do I start building credit from scratch?",
+      "verdict": {
+        "in_scope": true,
+        "reason": "ambiguous",
+        "expected": "in",
+        "pass": true
+      },
+      "retrieval_top_5": [
+        {
+          "label_id": "all_cards_maxed",
+          "score": 0.0
+        },
+        {
+          "label_id": "major_delinquency",
+          "score": 0.0
+        },
+        {
+          "label_id": "maxed_out",
+          "score": 0.0
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.0
+        },
+        {
+          "label_id": "collection_past_sol",
+          "score": 0.0
+        }
+      ],
+      "answer": "Open a secured card against an FD and pay the statement balance each month. [thin_file] [extreme_thin_file]",
+      "citations": [],
+      "expected_labels": [],
+      "cited_labels": [],
+      "keyword_present": true
+    },
+    {
+      "id": "out-of-scope-invest",
+      "question": "Should I invest in index funds?",
+      "verdict": {
+        "in_scope": true,
+        "reason": "ambiguous",
+        "expected": "out",
+        "pass": false
+      },
+      "retrieval_top_5": [
+        {
+          "label_id": "all_cards_maxed",
+          "score": 0.0
+        },
+        {
+          "label_id": "major_delinquency",
+          "score": 0.0
+        },
+        {
+          "label_id": "maxed_out",
+          "score": 0.0
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.0
+        },
+        {
+          "label_id": "collection_past_sol",
+          "score": 0.0
+        }
+      ],
+      "answer": "I'm your credit coach, so I can only help with credit report questions \u2014 I can't advise on investments.",
+      "citations": [],
+      "expected_labels": [],
+      "cited_labels": [],
+      "keyword_present": true
+    },
+    {
+      "id": "out-of-scope-career",
+      "question": "What career should I pursue?",
+      "verdict": {
+        "in_scope": true,
+        "reason": "ambiguous",
+        "expected": "out",
+        "pass": false
+      },
+      "retrieval_top_5": [
+        {
+          "label_id": "all_cards_maxed",
+          "score": 0.0
+        },
+        {
+          "label_id": "major_delinquency",
+          "score": 0.0
+        },
+        {
+          "label_id": "maxed_out",
+          "score": 0.0
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.0
+        },
+        {
+          "label_id": "collection_past_sol",
+          "score": 0.0
+        }
+      ],
+      "answer": "That's outside what I cover \u2014 career advice needs a different kind of expert.",
+      "citations": [],
+      "expected_labels": [],
+      "cited_labels": [],
+      "keyword_present": true
+    },
+    {
+      "id": "out-of-scope-housing",
+      "question": "Should I rent or buy a house?",
+      "verdict": {
+        "in_scope": true,
+        "reason": "ambiguous",
+        "expected": "out",
+        "pass": false
+      },
+      "retrieval_top_5": [
+        {
+          "label_id": "all_cards_maxed",
+          "score": 0.0
+        },
+        {
+          "label_id": "major_delinquency",
+          "score": 0.0
+        },
+        {
+          "label_id": "maxed_out",
+          "score": 0.0
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.0
+        },
+        {
+          "label_id": "collection_past_sol",
+          "score": 0.0
+        }
+      ],
+      "answer": "I'm your credit coach, so I can only help with credit report questions \u2014 housing decisions are out of scope.",
+      "citations": [],
+      "expected_labels": [],
+      "cited_labels": [],
+      "keyword_present": true
+    }
+  ]
+}

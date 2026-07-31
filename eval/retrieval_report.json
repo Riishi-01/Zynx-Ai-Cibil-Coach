@@ -1,0 +1,429 @@
+{
+  "embedding_model": "text-embedding-3-small",
+  "embedding_dim": 1536,
+  "chunks_bundled": 32,
+  "guardrail_in_count": 8,
+  "guardrail_out_count": 8,
+  "queries": [
+    {
+      "id": "rate-shopping",
+      "question": "What is rate shopping and how does CIBIL dedupe it?",
+      "retrieved_top_5": [
+        {
+          "label_id": "low_utilization",
+          "score": 0.1635
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.1399
+        },
+        {
+          "label_id": "disputable_collection",
+          "score": 0.1399
+        },
+        {
+          "label_id": "high_utilization",
+          "score": 0.1226
+        },
+        {
+          "label_id": "extreme_thin_file",
+          "score": 0.0904
+        }
+      ],
+      "expected_labels": [
+        "credit_seeking_pattern",
+        "recent_inquiries"
+      ],
+      "top_expected_in_top5": null,
+      "recall_at_5": 0.0,
+      "guardrail": {
+        "in_avg": 0.0008,
+        "out_avg": 0.0008,
+        "out_of_scope_expected": false,
+        "pass": true
+      },
+      "citations": [
+        {
+          "label_id": "low_utilization"
+        }
+      ]
+    },
+    {
+      "id": "close-oldest-card",
+      "question": "Should I close my oldest credit card to increase my score?",
+      "retrieved_top_5": [
+        {
+          "label_id": "recent_late_payment",
+          "score": 0.2306
+        },
+        {
+          "label_id": "single_card_limit_share",
+          "score": 0.1779
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.1667
+        },
+        {
+          "label_id": "high_dti",
+          "score": 0.1501
+        },
+        {
+          "label_id": "score_rising",
+          "score": 0.1306
+        }
+      ],
+      "expected_labels": [
+        "oldest_card_at_risk",
+        "unused_revolving_cards"
+      ],
+      "top_expected_in_top5": null,
+      "recall_at_5": 0.0,
+      "guardrail": {
+        "in_avg": -0.0764,
+        "out_avg": -0.0764,
+        "out_of_scope_expected": false,
+        "pass": true
+      },
+      "citations": [
+        {
+          "label_id": "recent_late_payment"
+        }
+      ]
+    },
+    {
+      "id": "late-7-year",
+      "question": "How long does a 60-day late payment stay on my CIBIL report?",
+      "retrieved_top_5": [
+        {
+          "label_id": "all_cards_maxed",
+          "score": 0.3634
+        },
+        {
+          "label_id": "recent_late_payment",
+          "score": 0.1909
+        },
+        {
+          "label_id": "score_rising",
+          "score": 0.1545
+        },
+        {
+          "label_id": "no_revolving_credit",
+          "score": 0.1472
+        },
+        {
+          "label_id": "maxed_out",
+          "score": 0.1381
+        }
+      ],
+      "expected_labels": [
+        "recent_late_payment",
+        "serious_delinquency"
+      ],
+      "top_expected_in_top5": "recent_late_payment",
+      "recall_at_5": 0.5,
+      "guardrail": {
+        "in_avg": 0.0847,
+        "out_avg": 0.0847,
+        "out_of_scope_expected": false,
+        "pass": true
+      },
+      "citations": [
+        {
+          "label_id": "all_cards_maxed"
+        }
+      ]
+    },
+    {
+      "id": "utilization-30",
+      "question": "What is a good credit utilization ratio?",
+      "retrieved_top_5": [
+        {
+          "label_id": "data_staleness",
+          "score": 0.2982
+        },
+        {
+          "label_id": "score_falling",
+          "score": 0.2315
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.228
+        },
+        {
+          "label_id": "single_card_dependency",
+          "score": 0.221
+        },
+        {
+          "label_id": "perfect_payment",
+          "score": 0.2104
+        }
+      ],
+      "expected_labels": [
+        "high_utilization",
+        "low_utilization"
+      ],
+      "top_expected_in_top5": null,
+      "recall_at_5": 0.0,
+      "guardrail": {
+        "in_avg": -0.0083,
+        "out_avg": -0.0083,
+        "out_of_scope_expected": false,
+        "pass": true
+      },
+      "citations": [
+        {
+          "label_id": "data_staleness"
+        }
+      ]
+    },
+    {
+      "id": "maxed-meaning",
+      "question": "What does maxed out mean on my credit card?",
+      "retrieved_top_5": [
+        {
+          "label_id": "perfect_payment",
+          "score": 0.307
+        },
+        {
+          "label_id": "high_dti",
+          "score": 0.2587
+        },
+        {
+          "label_id": "utilization_concentration",
+          "score": 0.2207
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.2103
+        },
+        {
+          "label_id": "no_revolving_credit",
+          "score": 0.1759
+        }
+      ],
+      "expected_labels": [
+        "maxed_out",
+        "maxed_out_account"
+      ],
+      "top_expected_in_top5": null,
+      "recall_at_5": 0.0,
+      "guardrail": {
+        "in_avg": -0.0315,
+        "out_avg": -0.0315,
+        "out_of_scope_expected": false,
+        "pass": true
+      },
+      "citations": [
+        {
+          "label_id": "perfect_payment"
+        }
+      ]
+    },
+    {
+      "id": "hard-inquiry",
+      "question": "What is a hard inquiry on my credit file?",
+      "retrieved_top_5": [
+        {
+          "label_id": "data_staleness",
+          "score": 0.3176
+        },
+        {
+          "label_id": "score_volatile",
+          "score": 0.3033
+        },
+        {
+          "label_id": "no_revolving_credit",
+          "score": 0.2711
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.2319
+        },
+        {
+          "label_id": "score_falling",
+          "score": 0.1819
+        }
+      ],
+      "expected_labels": [
+        "recent_inquiries"
+      ],
+      "top_expected_in_top5": null,
+      "recall_at_5": 0.0,
+      "guardrail": {
+        "in_avg": -0.008,
+        "out_avg": -0.008,
+        "out_of_scope_expected": false,
+        "pass": true
+      },
+      "citations": [
+        {
+          "label_id": "data_staleness"
+        }
+      ]
+    },
+    {
+      "id": "secured-card",
+      "question": "How do I start building credit from scratch?",
+      "retrieved_top_5": [
+        {
+          "label_id": "all_cards_maxed",
+          "score": 0.5298
+        },
+        {
+          "label_id": "maxed_out",
+          "score": 0.2013
+        },
+        {
+          "label_id": "high_utilization",
+          "score": 0.1775
+        },
+        {
+          "label_id": "disputable_collection",
+          "score": 0.1749
+        },
+        {
+          "label_id": "perfect_payment",
+          "score": 0.1696
+        }
+      ],
+      "expected_labels": [
+        "extreme_thin_file",
+        "thin_file"
+      ],
+      "top_expected_in_top5": null,
+      "recall_at_5": 0.0,
+      "guardrail": {
+        "in_avg": 0.0447,
+        "out_avg": 0.0447,
+        "out_of_scope_expected": false,
+        "pass": true
+      },
+      "citations": [
+        {
+          "label_id": "all_cards_maxed"
+        }
+      ]
+    },
+    {
+      "id": "out-of-scope-invest",
+      "question": "Should I invest in index funds?",
+      "retrieved_top_5": [
+        {
+          "label_id": "score_rising",
+          "score": 0.4975
+        },
+        {
+          "label_id": "single_card_limit_share",
+          "score": 0.2793
+        },
+        {
+          "label_id": "excessive_new_credit",
+          "score": 0.2439
+        },
+        {
+          "label_id": "credit_score_context",
+          "score": 0.2247
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.1926
+        }
+      ],
+      "expected_labels": [],
+      "top_expected_in_top5": null,
+      "recall_at_5": null,
+      "guardrail": {
+        "in_avg": -0.085,
+        "out_avg": -0.085,
+        "out_of_scope_expected": true,
+        "pass": false
+      },
+      "citations": [
+        {
+          "label_id": "score_rising"
+        }
+      ]
+    },
+    {
+      "id": "out-of-scope-career",
+      "question": "What career should I pursue?",
+      "retrieved_top_5": [
+        {
+          "label_id": "data_staleness",
+          "score": 0.504
+        },
+        {
+          "label_id": "thin_file",
+          "score": 0.2634
+        },
+        {
+          "label_id": "single_card_dependency",
+          "score": 0.2342
+        },
+        {
+          "label_id": "high_dti",
+          "score": 0.2016
+        },
+        {
+          "label_id": "recent_inquiries",
+          "score": 0.1951
+        }
+      ],
+      "expected_labels": [],
+      "top_expected_in_top5": null,
+      "recall_at_5": null,
+      "guardrail": {
+        "in_avg": -0.0398,
+        "out_avg": -0.0398,
+        "out_of_scope_expected": true,
+        "pass": false
+      },
+      "citations": [
+        {
+          "label_id": "data_staleness"
+        }
+      ]
+    },
+    {
+      "id": "out-of-scope-housing",
+      "question": "Should I rent or buy a house?",
+      "retrieved_top_5": [
+        {
+          "label_id": "low_utilization",
+          "score": 0.4897
+        },
+        {
+          "label_id": "zero_utilization_paradox",
+          "score": 0.2875
+        },
+        {
+          "label_id": "paid_collection_still_reporting",
+          "score": 0.2527
+        },
+        {
+          "label_id": "high_dti",
+          "score": 0.2022
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.1895
+        }
+      ],
+      "expected_labels": [],
+      "top_expected_in_top5": null,
+      "recall_at_5": null,
+      "guardrail": {
+        "in_avg": -0.0837,
+        "out_avg": -0.0837,
+        "out_of_scope_expected": true,
+        "pass": false
+      },
+      "citations": [
+        {
+          "label_id": "low_utilization"
+        }
+      ]
+    }
+  ]
+}

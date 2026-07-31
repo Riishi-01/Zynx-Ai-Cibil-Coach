@@ -1,0 +1,537 @@
+{
+  "total": 12,
+  "passed": 0,
+  "results": [
+    {
+      "id": "rate-shopping",
+      "pass": false,
+      "in_scope_expected": true,
+      "out_of_scope_detected": false,
+      "verdict_reason": "ambiguous",
+      "retrieval": [
+        {
+          "label_id": "low_utilization",
+          "score": 0.2499
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.2137
+        },
+        {
+          "label_id": "disputable_collection",
+          "score": 0.2137
+        },
+        {
+          "label_id": "high_utilization",
+          "score": 0.1874
+        },
+        {
+          "label_id": "extreme_thin_file",
+          "score": 0.1381
+        }
+      ],
+      "answer": "When you cluster several loan applications within a 30-day window they count as one inquiry for CIBIL purposes. [credit_seeking_pattern] [Source: CIBIL Score Factors]",
+      "citations": [
+        {
+          "source_title": "CIBIL Score Factors"
+        }
+      ],
+      "checks": {
+        "keywords": false,
+        "labels": false,
+        "guardrail": true,
+        "keyword_hits": {
+          "cluster": true,
+          "30 days": false,
+          "fcra": false
+        },
+        "expected_labels": [
+          "credit_seeking_pattern",
+          "recent_inquiries"
+        ],
+        "cited_labels": []
+      }
+    },
+    {
+      "id": "oldest-card",
+      "pass": false,
+      "in_scope_expected": true,
+      "out_of_scope_detected": false,
+      "verdict_reason": "ambiguous",
+      "retrieval": [
+        {
+          "label_id": "recent_late_payment",
+          "score": 0.2591
+        },
+        {
+          "label_id": "single_card_limit_share",
+          "score": 0.1998
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.1874
+        },
+        {
+          "label_id": "high_dti",
+          "score": 0.1686
+        },
+        {
+          "label_id": "score_rising",
+          "score": 0.1467
+        }
+      ],
+      "answer": "When you cluster several loan applications within a 30-day window they count as one inquiry for CIBIL purposes. [credit_seeking_pattern] [Source: CIBIL Score Factors]",
+      "citations": [
+        {
+          "source_title": "CIBIL Score Factors"
+        }
+      ],
+      "checks": {
+        "keywords": false,
+        "labels": false,
+        "guardrail": true,
+        "keyword_hits": {
+          "oldest": false,
+          "history": false,
+          "do not close": false
+        },
+        "expected_labels": [
+          "oldest_card_at_risk"
+        ],
+        "cited_labels": []
+      }
+    },
+    {
+      "id": "late-payment-window",
+      "pass": false,
+      "in_scope_expected": true,
+      "out_of_scope_detected": false,
+      "verdict_reason": "ambiguous",
+      "retrieval": [
+        {
+          "label_id": "all_cards_maxed",
+          "score": 0.3634
+        },
+        {
+          "label_id": "recent_late_payment",
+          "score": 0.1909
+        },
+        {
+          "label_id": "score_rising",
+          "score": 0.1545
+        },
+        {
+          "label_id": "no_revolving_credit",
+          "score": 0.1472
+        },
+        {
+          "label_id": "maxed_out",
+          "score": 0.1381
+        }
+      ],
+      "answer": "When you cluster several loan applications within a 30-day window they count as one inquiry for CIBIL purposes. [credit_seeking_pattern] [Source: CIBIL Score Factors]",
+      "citations": [
+        {
+          "source_title": "CIBIL Score Factors"
+        }
+      ],
+      "checks": {
+        "keywords": false,
+        "labels": false,
+        "guardrail": true,
+        "keyword_hits": {
+          "7 years": false
+        },
+        "expected_labels": [
+          "recent_late_payment",
+          "serious_delinquency"
+        ],
+        "cited_labels": []
+      }
+    },
+    {
+      "id": "utilization-threshold",
+      "pass": false,
+      "in_scope_expected": true,
+      "out_of_scope_detected": false,
+      "verdict_reason": "ambiguous",
+      "retrieval": [
+        {
+          "label_id": "data_staleness",
+          "score": 0.2982
+        },
+        {
+          "label_id": "score_falling",
+          "score": 0.2315
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.228
+        },
+        {
+          "label_id": "single_card_dependency",
+          "score": 0.221
+        },
+        {
+          "label_id": "perfect_payment",
+          "score": 0.2104
+        }
+      ],
+      "answer": "When you cluster several loan applications within a 30-day window they count as one inquiry for CIBIL purposes. [credit_seeking_pattern] [Source: CIBIL Score Factors]",
+      "citations": [
+        {
+          "source_title": "CIBIL Score Factors"
+        }
+      ],
+      "checks": {
+        "keywords": false,
+        "labels": false,
+        "guardrail": true,
+        "keyword_hits": {
+          "30%": false
+        },
+        "expected_labels": [
+          "high_utilization",
+          "low_utilization"
+        ],
+        "cited_labels": []
+      }
+    },
+    {
+      "id": "maxed-out-meaning",
+      "pass": false,
+      "in_scope_expected": true,
+      "out_of_scope_detected": false,
+      "verdict_reason": "ambiguous",
+      "retrieval": [
+        {
+          "label_id": "no_revolving_credit",
+          "score": 0.254
+        },
+        {
+          "label_id": "thin_file",
+          "score": 0.2438
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.2066
+        },
+        {
+          "label_id": "serious_delinquency",
+          "score": 0.2066
+        },
+        {
+          "label_id": "excessive_new_credit",
+          "score": 0.1728
+        }
+      ],
+      "answer": "When you cluster several loan applications within a 30-day window they count as one inquiry for CIBIL purposes. [credit_seeking_pattern] [Source: CIBIL Score Factors]",
+      "citations": [
+        {
+          "source_title": "CIBIL Score Factors"
+        }
+      ],
+      "checks": {
+        "keywords": false,
+        "labels": false,
+        "guardrail": true,
+        "keyword_hits": {
+          "90%": false
+        },
+        "expected_labels": [
+          "maxed_out",
+          "maxed_out_account"
+        ],
+        "cited_labels": []
+      }
+    },
+    {
+      "id": "hard-inquiry-explain",
+      "pass": false,
+      "in_scope_expected": true,
+      "out_of_scope_detected": false,
+      "verdict_reason": "ambiguous",
+      "retrieval": [
+        {
+          "label_id": "score_volatile",
+          "score": 0.6173
+        },
+        {
+          "label_id": "score_falling",
+          "score": 0.3186
+        },
+        {
+          "label_id": "utilization_concentration",
+          "score": 0.3027
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.2191
+        },
+        {
+          "label_id": "credit_seeking_pattern",
+          "score": 0.1992
+        }
+      ],
+      "answer": "When you cluster several loan applications within a 30-day window they count as one inquiry for CIBIL purposes. [credit_seeking_pattern] [Source: CIBIL Score Factors]",
+      "citations": [
+        {
+          "label_id": "credit_seeking_pattern"
+        },
+        {
+          "source_title": "CIBIL Score Factors"
+        }
+      ],
+      "checks": {
+        "keywords": true,
+        "labels": false,
+        "guardrail": true,
+        "keyword_hits": {
+          "inquiry": true,
+          "score": true
+        },
+        "expected_labels": [
+          "recent_inquiries"
+        ],
+        "cited_labels": [
+          "credit_seeking_pattern"
+        ]
+      }
+    },
+    {
+      "id": "thin-file-secure-card",
+      "pass": false,
+      "skipped": true,
+      "reason": "pipeline failed: No credit file for PAN ABCDE0000F"
+    },
+    {
+      "id": "anjali-new-card",
+      "pass": false,
+      "in_scope_expected": true,
+      "out_of_scope_detected": false,
+      "verdict_reason": "ambiguous",
+      "retrieval": [
+        {
+          "label_id": "utilization_concentration",
+          "score": 0.2427
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.1844
+        },
+        {
+          "label_id": "excessive_new_credit",
+          "score": 0.169
+        },
+        {
+          "label_id": "low_utilization",
+          "score": 0.1659
+        },
+        {
+          "label_id": "thin_file",
+          "score": 0.1444
+        }
+      ],
+      "answer": "When you cluster several loan applications within a 30-day window they count as one inquiry for CIBIL purposes. [credit_seeking_pattern] [Source: CIBIL Score Factors]",
+      "citations": [
+        {
+          "source_title": "CIBIL Score Factors"
+        }
+      ],
+      "checks": {
+        "keywords": false,
+        "labels": false,
+        "guardrail": true,
+        "keyword_hits": {
+          "inquiries": false
+        },
+        "expected_labels": [
+          "credit_seeking_pattern"
+        ],
+        "cited_labels": []
+      }
+    },
+    {
+      "id": "anjali-close-card",
+      "pass": false,
+      "in_scope_expected": true,
+      "out_of_scope_detected": false,
+      "verdict_reason": "ambiguous",
+      "retrieval": [
+        {
+          "label_id": "score_falling",
+          "score": 0.4192
+        },
+        {
+          "label_id": "data_staleness",
+          "score": 0.3962
+        },
+        {
+          "label_id": "high_dti",
+          "score": 0.1559
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.1534
+        },
+        {
+          "label_id": "recent_inquiries",
+          "score": 0.1405
+        }
+      ],
+      "answer": "When you cluster several loan applications within a 30-day window they count as one inquiry for CIBIL purposes. [credit_seeking_pattern] [Source: CIBIL Score Factors]",
+      "citations": [
+        {
+          "source_title": "CIBIL Score Factors"
+        }
+      ],
+      "checks": {
+        "keywords": false,
+        "labels": false,
+        "guardrail": true,
+        "keyword_hits": {
+          "oldest": false
+        },
+        "expected_labels": [
+          "oldest_card_at_risk"
+        ],
+        "cited_labels": []
+      }
+    },
+    {
+      "id": "out-of-scope-invest",
+      "pass": false,
+      "in_scope_expected": false,
+      "out_of_scope_detected": false,
+      "verdict_reason": "ambiguous",
+      "retrieval": [
+        {
+          "label_id": "score_rising",
+          "score": 0.4975
+        },
+        {
+          "label_id": "single_card_limit_share",
+          "score": 0.2793
+        },
+        {
+          "label_id": "excessive_new_credit",
+          "score": 0.2439
+        },
+        {
+          "label_id": "credit_score_context",
+          "score": 0.2247
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.1926
+        }
+      ],
+      "answer": "When you cluster several loan applications within a 30-day window they count as one inquiry for CIBIL purposes. [credit_seeking_pattern] [Source: CIBIL Score Factors]",
+      "citations": [
+        {
+          "source_title": "CIBIL Score Factors"
+        }
+      ],
+      "checks": {
+        "keywords": false,
+        "labels": true,
+        "guardrail": false,
+        "keyword_hits": {
+          "credit coach": false
+        },
+        "expected_labels": [],
+        "cited_labels": []
+      }
+    },
+    {
+      "id": "out-of-scope-career",
+      "pass": false,
+      "in_scope_expected": false,
+      "out_of_scope_detected": false,
+      "verdict_reason": "ambiguous",
+      "retrieval": [
+        {
+          "label_id": "data_staleness",
+          "score": 0.504
+        },
+        {
+          "label_id": "thin_file",
+          "score": 0.2634
+        },
+        {
+          "label_id": "single_card_dependency",
+          "score": 0.2342
+        },
+        {
+          "label_id": "high_dti",
+          "score": 0.2016
+        },
+        {
+          "label_id": "recent_inquiries",
+          "score": 0.1951
+        }
+      ],
+      "answer": "When you cluster several loan applications within a 30-day window they count as one inquiry for CIBIL purposes. [credit_seeking_pattern] [Source: CIBIL Score Factors]",
+      "citations": [
+        {
+          "source_title": "CIBIL Score Factors"
+        }
+      ],
+      "checks": {
+        "keywords": false,
+        "labels": true,
+        "guardrail": false,
+        "keyword_hits": {
+          "credit coach": false
+        },
+        "expected_labels": [],
+        "cited_labels": []
+      }
+    },
+    {
+      "id": "out-of-scope-housing",
+      "pass": false,
+      "in_scope_expected": false,
+      "out_of_scope_detected": false,
+      "verdict_reason": "ambiguous",
+      "retrieval": [
+        {
+          "label_id": "low_utilization",
+          "score": 0.4897
+        },
+        {
+          "label_id": "zero_utilization_paradox",
+          "score": 0.2875
+        },
+        {
+          "label_id": "paid_collection_still_reporting",
+          "score": 0.2527
+        },
+        {
+          "label_id": "high_dti",
+          "score": 0.2022
+        },
+        {
+          "label_id": "severe_dti",
+          "score": 0.1895
+        }
+      ],
+      "answer": "When you cluster several loan applications within a 30-day window they count as one inquiry for CIBIL purposes. [credit_seeking_pattern] [Source: CIBIL Score Factors]",
+      "citations": [
+        {
+          "source_title": "CIBIL Score Factors"
+        }
+      ],
+      "checks": {
+        "keywords": false,
+        "labels": true,
+        "guardrail": false,
+        "keyword_hits": {
+          "credit coach": false
+        },
+        "expected_labels": [],
+        "cited_labels": []
+      }
+    }
+  ]
+}
