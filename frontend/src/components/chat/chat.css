@@ -1,6 +1,7 @@
 /**
  * Chat pane styling: message list, composer, streaming cursor, plan sections.
  */
+@import './MessageMetadata.css';
 
 .chat-pane {
   display: flex;

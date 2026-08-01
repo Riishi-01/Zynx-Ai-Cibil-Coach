@@ -5,14 +5,14 @@ from __future__ import annotations
 import pytest
 
 from app.chat_rag import Retrieval
+from app.label_service import run_pipeline
 from app.prompt_builder import build_chat_prompt
 
 
 @pytest.fixture
 def pipeline_outputs(seeded_db):
-    from app.label_service import run_pipeline
-
-    return run_pipeline("ABCPS1234A", 75000)
+    record, sanitised, facts, fired, _first_name = run_pipeline("ABCPS1234A", 75000)
+    return record, sanitised, facts, fired
 
 
 def test_chat_prompt_includes_retrieved_chunks(pipeline_outputs):

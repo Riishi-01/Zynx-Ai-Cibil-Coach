@@ -215,3 +215,6 @@ class CanvasResponse(BaseModel):
     utilization: UtilizationView
     payment_heatmap: PaymentHeatmap
     labels: LabelsResponse
+
+    # Customer-facing name, returned only to the dock (NOT to the prompt).
+    first_name: str = ""

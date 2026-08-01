@@ -32,10 +32,16 @@ SEVERITY_ORDER = ["critical", "warning", "info", "ok", "excellent"]
 
 def run_pipeline(
     pan_card: str, monthly_income_inr: Optional[int] = None
-) -> tuple[CustomerRecord, SanitisedRecord, FactSet, list[FiredLabel]]:
+) -> tuple[CustomerRecord, SanitisedRecord, FactSet, list[FiredLabel], str]:
     """Run fetch -> sanitise -> precompute -> fire_labels for one PAN.
 
     Shared by the labels, canvas and plan endpoints so they cannot drift apart.
+
+    Returns ``(record, sanitised, facts, fired, first_name)`` where
+    ``first_name`` is the customer-facing name from the canonical record.
+    It is exposed here so the frontend dock can show the un-redacted name
+    alongside the masked PAN — callers must never forward ``first_name``
+    into a prompt or localStorage key.
 
     If monthly_income_inr is omitted, the customer's stored income is used.
     """
@@ -47,8 +53,9 @@ def run_pipeline(
     sanitised = sanitise_record(record)
     facts = precompute_facts(sanitised, monthly_income_inr=monthly_income_inr)
     fired = fire_labels(facts)
+    first_name = record.customer.first_name or ""
 
-    return record, sanitised, facts, fired
+    return record, sanitised, facts, fired, first_name
 
 
 def _account_name(record: SanitisedRecord, account_id: Optional[str]) -> Optional[str]:
@@ -62,7 +69,7 @@ def build_labels_response(
     pan_card: str, monthly_income_inr: Optional[int] = None
 ) -> LabelsResponse:
     """Build the full 32-label diagnostic for a customer."""
-    _record, sanitised, facts, fired = run_pipeline(pan_card, monthly_income_inr)
+    _record, sanitised, facts, fired, _first_name = run_pipeline(pan_card, monthly_income_inr)
     return labels_response_from(sanitised, facts, fired)
 
 

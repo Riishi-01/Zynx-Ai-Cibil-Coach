@@ -1,31 +1,26 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CanvasResponse } from '../types';
 import { Analyzer } from './Analyzer';
+import { COPY } from '../copy';
 
-/**
- * Drive the PAN dropdown: focus the combobox, choose an option from the
- * listbox. Mirrors what the user does — open the list, click the row — and
- * keeps the test resilient to internal combobox state changes.
- */
-async function pickPan(user: ReturnType<typeof userEvent.setup>, pan: string) {
-  const combo = screen.getByRole('combobox', { name: /pan/i });
-  await user.click(combo);
-  await user.click(screen.getByRole('option', { name: new RegExp(pan) }));
-}
-
-/** Minimal fixture that satisfies the CanvasResponse shape for chart rendering. */
 const MOCK_CANVAS: CanvasResponse = {
   pan_masked: 'ABCPS****A',
   customer_id: 'cust_001',
   as_of_date: '2026-07-25',
   score_hero: {
-    score: 715, band: 'Good', score_min: 300, score_max: 900,
-    previous_score_1mo: 730, previous_score_3mo: 740,
-    score_change_1mo: -15, score_change_3mo: -25,
-    score_trend: 'falling', band_progress: 0.3,
+    score: 715,
+    band: 'Good',
+    score_min: 300,
+    score_max: 900,
+    previous_score_1mo: 730,
+    previous_score_3mo: 740,
+    score_change_1mo: -15,
+    score_change_3mo: -25,
+    score_trend: 'falling',
+    band_progress: 0.3,
     bands: [
       { name: 'Poor', min_score: 300, max_score: 579 },
       { name: 'Fair', min_score: 580, max_score: 699 },
@@ -40,85 +35,96 @@ const MOCK_CANVAS: CanvasResponse = {
       { label: '1 month ago', score: 730 },
       { label: 'Now', score: 715 },
     ],
-    trend: 'falling', change_3mo: -25,
+    trend: 'falling',
+    change_3mo: -25,
     annotation: 'Score dropped 25 points in 3 months',
   },
   utilization: {
-    overall_utilization: 0.572, total_balance_paise: 515000,
-    total_credit_limit_paise: 900000, target_utilization: 0.30,
+    overall_utilization: 0.572,
+    total_balance_paise: 515000,
+    total_credit_limit_paise: 900000,
+    target_utilization: 0.30,
     paydown_to_target_paise: 245000,
     cards: [
-      { account_id: 'acc_001_1', display_name: 'HDFC Millennia', balance_paise: 420000, credit_limit_paise: 600000, utilization: 0.70, is_maxed: false, is_unused: false, paydown_to_target_paise: 240000 },
-      { account_id: 'acc_001_2', display_name: 'SBI SimplyCLICK', balance_paise: 90000, credit_limit_paise: 200000, utilization: 0.45, is_maxed: false, is_unused: false, paydown_to_target_paise: 30000 },
+      {
+        account_id: 'acc_001_1',
+        display_name: 'HDFC Millennia',
+        balance_paise: 420000,
+        credit_limit_paise: 600000,
+        utilization: 0.7,
+        is_maxed: false,
+        is_unused: false,
+        paydown_to_target_paise: 240000,
+      },
     ],
     top_card_account_id: 'acc_001_1',
-    callout: 'Highest card: HDFC Millennia at 70%. Pay ₹2,40,000 to bring it to 30%.',
+    callout: 'Highest card: HDFC Millennia at 70%.',
   },
   payment_heatmap: {
-    cells: Array.from({ length: 24 }, (_, i) => ({
-      period: `2024-${String((i % 12) + 1).padStart(2, '0')}`,
-      label: `Month ${i + 1}`,
-      status: 0 as const,
-      has_data: true,
-    })),
-    months_on_time: 24, months_total: 24, pct_on_time: 1.0,
-    worst_status: 0, most_recent_late_period: null,
-    summary: '24/24 months on time — perfect history.',
+    cells: [],
+    months_on_time: 24,
+    months_total: 24,
+    pct_on_time: 1.0,
+    worst_status: 0,
+    most_recent_late_period: null,
+    summary: '24/24 on time',
   },
   labels: {
-    pan_masked: 'ABCPS****A', customer_id: 'cust_001', score: 715,
-    score_band: 'Good', as_of_date: '2026-07-25',
-    total_labels: 32, n_fired: 5,
-    labels: Array.from({ length: 32 }, (_, i) => ({
-      label_id: `label_${i}`, display_name: `Label ${i}`,
-      category: 'utilization' as const, severity: i < 5 ? 'critical' as const : 'ok' as const,
-      priority_rank: i < 5 ? 1 : 5, fired: i < 5,
-      condition_human: '', what_it_means_cibil: '', why_it_matters: '',
-      instances: i < 5 ? [{ account_id: null, account_name: null, message: `Msg ${i}`, mitigation_steps: [] }] : [],
-      facts_to_cite: {}, cibil_reason_codes: [], sources: [],
-    })),
-    fired_by_severity: { critical: ['label_0'], warning: [], ok: [], excellent: [], info: [] },
+    pan_masked: 'ABCPS****A',
+    customer_id: 'cust_001',
+    score: 715,
+    score_band: 'Good',
+    as_of_date: '2026-07-25',
+    total_labels: 32,
+    n_fired: 0,
+    labels: [],
+    fired_by_severity: { critical: [], warning: [], ok: [], excellent: [], info: [] },
   },
+  first_name: 'Anjali',
 };
 
-/**
- * Advance React's reconciliation after the mocked fetch resolves.
- */
-async function flushFetch() {
+const PLAN_PAYLOADS = {
+  current_situation: 'Mocked plan.',
+  top_actions: [
+    {
+      title: 'Pay Down High Utilization Card',
+      why: 'Your utilization is high.',
+      steps: ['Pay ₹2,400 today.'],
+      when_youll_see_results: '1-2 billing cycles',
+    },
+  ],
+  what_to_avoid: ['Do not apply for new credit.'],
+};
+
+const ANALYZE_SSE = () => {
+  const frames = [
+    `event: canvas\ndata: ${JSON.stringify(MOCK_CANVAS)}\n\n`,
+    `event: plan_delta\ndata: ${JSON.stringify(PLAN_PAYLOADS)}\n\n`,
+    `event: metadata\ndata: ${JSON.stringify({
+      model: 'gpt-4o-mini-2024-07-18',
+      prompt_tokens: 1234,
+      completion_tokens: 567,
+    })}\n\n`,
+    `event: done\ndata: {"ok":true}\n\n`,
+  ];
+  return frames.join('');
+};
+
+async function flush() {
   await act(async () => {
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
   });
 }
 
-describe('Analyzer integration', () => {
+describe('Analyzer shell', () => {
   beforeEach(() => {
-    // Mock fetch for /api/analyze and /api/chat from ChatPane. The canvas
-    // payload now arrives as the first SSE frame (event: canvas) — that's
-    // also the trigger that flips the page into STREAMING and reveals the
-    // canvas pane. No synchronous /api/canvas call is made anymore.
-    vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
-      if (url === '/api/analyze' || url === '/api/chat') {
-        const sseBody = [
-          `event: canvas\ndata: ${JSON.stringify(MOCK_CANVAS)}\n\n`,
-          `event: plan_delta\ndata: ${JSON.stringify({ current_situation: 'Mocked plan.' })}\n\n`,
-          `event: metadata\ndata: ${JSON.stringify({ model: 'gpt-4o-mini', prompt_tokens: 1234, completion_tokens: 567 })}\n\n`,
-          `event: done\ndata: {"ok":true}\n\n`,
-        ].join('');
-        const encoder = new TextEncoder();
-        const stream = new ReadableStream({
-          start(controller) {
-            controller.enqueue(encoder.encode(sseBody));
-            controller.close();
-          },
-        });
-        return Promise.resolve({
-          ok: true,
-          body: stream,
-          headers: new Headers({ 'content-type': 'text/event-stream' }),
-        });
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.clear();
+      } catch {
+        // ignore (jsdom returns a stub without real methods)
       }
-      return Promise.resolve({ ok: false, json: () => Promise.resolve({ detail: 'Not found' }) });
-    }));
+    }
   });
 
   afterEach(() => {
@@ -127,110 +133,164 @@ describe('Analyzer integration', () => {
 
   it('starts on the centered IDLE form', () => {
     render(<Analyzer />);
-    expect(screen.getByRole('button', { name: /get credit analyzed/i })).toBeInTheDocument();
-    expect(screen.queryByLabelText(/chat/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /get credit analyzed/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: /main navigation/i })).toBeInTheDocument();
   });
 
-  it('submitting moves to STREAMING and reveals the chat + canvas panes on the first SSE frame', async () => {
+  it('streams canvas + plan + metadata into a session view', async () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(ANALYZE_SSE()));
+        controller.close();
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url !== '/api/analyze') {
+          return Promise.resolve({
+            ok: false,
+            status: 404,
+            json: () => Promise.resolve({ detail: 'Not found' }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: stream,
+          headers: new Headers({ 'content-type': 'text/event-stream' }),
+        });
+      }),
+    );
+
     const user = userEvent.setup();
     render(<Analyzer />);
 
-    await pickPan(user, 'ABCPS1234A');
+    await user.click(screen.getByLabelText(/pan/i));
+    await user.click(screen.getByRole('option', { name: /ABCPS1234A/i }));
     await user.type(screen.getByLabelText(/monthly income/i), '75000');
     await user.click(screen.getByRole('button', { name: /get credit analyzed/i }));
-
-    await flushFetch();
 
     await waitFor(() => {
-      // ChatPane renders inside the chat section — the composer send button is the
-      // canonical anchor (the textarea was removed; the assistant message is
-      // the only other thing in the pane).
-      expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument();
-      expect(screen.getByLabelText(/credit profile canvas/i)).toBeInTheDocument();
+      expect(screen.getByText(/Pay Down High Utilization Card/i)).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText('gpt-4o-mini-2024-07-18'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the dock history badge after an analysis completes', async () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(ANALYZE_SSE()));
+        controller.close();
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url !== '/api/analyze') {
+          return Promise.resolve({
+            ok: false,
+            status: 404,
+            json: () => Promise.resolve({ detail: 'Not found' }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          body: stream,
+          headers: new Headers({ 'content-type': 'text/event-stream' }),
+        });
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(<Analyzer />);
+    await user.click(screen.getByLabelText(/pan/i));
+    await user.click(screen.getByRole('option', { name: /ABCPS1234A/i }));
+    await user.type(screen.getByLabelText(/monthly income/i), '75000');
+    await user.click(screen.getByRole('button', { name: /get credit analyzed/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Pay Down High Utilization Card/i)).toBeInTheDocument();
     });
 
-    // The chip now shows the submitted PAN, and the form itself is gone.
-    expect(screen.getByText('ABCPS1234A')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /get credit analyzed/i })).not.toBeInTheDocument();
-
-    // Charts are rendered with real data from the mock.
-    expect(screen.getByText('Good')).toBeInTheDocument(); // band label in ScoreHero
-    expect(screen.getByText('5')).toBeInTheDocument(); // n_fired in LabelsFired count (inside the canvas pane now)
+    // History panel only renders on hover; the badge counts the new record.
+    const nav = screen.getByRole('navigation', { name: /main navigation/i });
+    const historyWrapper = nav.querySelector('.dock-history-wrapper');
+    if (!historyWrapper) throw new Error('history wrapper not found');
+    fireEvent.mouseEnter(historyWrapper);
+    expect(
+      screen.getByLabelText(/History \(1 conversation\)/i),
+    ).toBeInTheDocument();
   });
 
-  it('renders the model footer with token usage + cost + elapsed time', async () => {
-    const user = userEvent.setup();
-    render(<Analyzer />);
-
-    await pickPan(user, 'ABCPS1234A');
-    await user.type(screen.getByLabelText(/monthly income/i), '75000');
-    await user.click(screen.getByRole('button', { name: /get credit analyzed/i }));
-
-    await flushFetch();
-
-    // The metadata SSE event delivers model + token counts.
-    const footer = await screen.findByLabelText(/analysis footer/i);
-    expect(footer.textContent).toContain('gpt-4o-mini');
-    expect(footer.textContent).toContain('Input');
-    expect(footer.textContent).toContain('1,234');
-    expect(footer.textContent).toContain('Output');
-    expect(footer.textContent).toContain('567');
-    expect(footer.textContent).toContain('$0.0005');
-    // Elapsed time: any positive seconds value with one decimal place.
-    expect(footer.textContent).toMatch(/\d+\.\ds/);
-  });
-
-  it('clicking the chip returns to IDLE with the form reopened', async () => {
-    const user = userEvent.setup();
-    render(<Analyzer />);
-
-    await pickPan(user, 'ABCPS1234A');
-    await user.type(screen.getByLabelText(/monthly income/i), '75000');
-    await user.click(screen.getByRole('button', { name: /get credit analyzed/i }));
-    await flushFetch();
-
-    const chip = await screen.findByRole('button', { name: /editing details/i });
-    await user.click(chip);
-
-    expect(screen.getByRole('button', { name: /get credit analyzed/i })).toBeInTheDocument();
-    // Back to a clean form, not the previous values.
-    const combo = screen.getByRole('combobox', { name: /pan/i });
-    expect(combo).toHaveValue('');
-  });
-
-  it('the canvas toggle flips aria-expanded and the button label without touching chat', async () => {
-    const user = userEvent.setup();
-    render(<Analyzer />);
-
-    await pickPan(user, 'ABCPS1234A');
-    await user.type(screen.getByLabelText(/monthly income/i), '75000');
-    await user.click(screen.getByRole('button', { name: /get credit analyzed/i }));
-    await flushFetch();
-    await screen.findByRole('button', { name: /send message/i });
-
-    // The real toggle is inside CanvasPane, labelled "Hide canvas".
-    const toggle = screen.getByRole('button', { name: /hide canvas/i });
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-
-    await user.click(toggle);
-
-    expect(screen.getByRole('button', { name: /show canvas/i })).toHaveAttribute(
-      'aria-expanded',
-      'false',
+  it('clears the chat turns via the docked Chat confirm dialog', async () => {
+    // Render an existing conversation that already has chat turns, then
+    // activate it through the dock so the Clear action is reachable.
+    localStorage.setItem(
+      'cibil-coach.conversations.v1',
+      JSON.stringify([
+        {
+          id: 'existing',
+          panMasked: 'ABCPS****A',
+          firstName: 'Anjali',
+          incomeInr: 75000,
+          canvas: MOCK_CANVAS,
+          initialPlan: PLAN_PAYLOADS,
+          initialMetadata: {
+            model: 'gpt-4o-mini-2024-07-18',
+            prompt_tokens: 100,
+            completion_tokens: 50,
+          },
+          elapsedMs: 1000,
+          turns: [
+            { role: 'user', content: 'First question' },
+            { role: 'assistant', content: 'First answer' },
+          ],
+          createdAt: '2026-07-25T00:00:00.000Z',
+          updatedAt: '2026-07-25T00:00:00.000Z',
+        },
+      ]),
     );
-    expect(screen.getByRole('button', { name: /send message/i })).toBeInTheDocument();
-  });
 
-  it('after analysis, the chat composer send button is rendered', async () => {
     const user = userEvent.setup();
     render(<Analyzer />);
 
-    await pickPan(user, 'ABCPS1234A');
-    await user.type(screen.getByLabelText(/monthly income/i), '75000');
-    await user.click(screen.getByRole('button', { name: /get credit analyzed/i }));
-    await flushFetch();
+    // While idle the docked chat button is disabled.
+    expect(
+      screen.getByRole('button', { name: COPY.dock.chatAria }),
+    ).toBeDisabled();
 
-    // ChatComposer renders a single send/stop button (no textarea).
-    expect(screen.getByRole('button', { name: /send message|stop generating/i })).toBeInTheDocument();
+    // Activate the session by hovering History + clicking the row.
+    const nav = screen.getByRole('navigation', { name: /main navigation/i });
+    const historyWrapper = nav.querySelector('.dock-history-wrapper');
+    if (!historyWrapper) throw new Error('history wrapper not found');
+    fireEvent.mouseEnter(historyWrapper);
+    const historyItem = await screen.findByRole('button', {
+      name: /ABCPS\*\*\*\*A/,
+    });
+    await user.click(historyItem);
+
+    // The session is now active and the Clear button enables.
+    const chatButton = await screen.findByRole('button', {
+      name: COPY.dock.chatAria,
+    });
+    expect(chatButton).toBeEnabled();
+
+    fireEvent.click(chatButton);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: COPY.message.clearChatConfirmConfirm }));
+
+    await flush();
+    const stored = JSON.parse(
+      localStorage.getItem('cibil-coach.conversations.v1') || '[]',
+    ) as Array<{ turns: unknown[] }>;
+    expect(stored[0].turns).toEqual([]);
   });
 });

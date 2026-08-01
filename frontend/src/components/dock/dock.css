@@ -1,0 +1,260 @@
+/**
+ * Vertical dock and hover-expand history panel.
+ *
+ * The dock lives on the left edge in every page state and replaces the
+ * previous top-nav affordance. It is 56 px collapsed and 320 px when
+ * the History section is hovered / focused.
+ */
+
+.dock {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 56px;
+  background: var(--bg-elev);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: var(--space-3) 0;
+  z-index: 50;
+  transition: width var(--duration-reveal, 220ms) var(--ease-standard, ease);
+}
+
+.dock--expanded {
+  width: 320px;
+}
+
+.dock-section {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  color: var(--fg-dim);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  position: relative;
+  border: none;
+  background: transparent;
+  text-align: left;
+  width: 100%;
+  border-left: 2px solid transparent;
+  transition: color var(--duration-focus) ease-out,
+    background var(--duration-focus) ease-out,
+    border-color var(--duration-focus) ease-out;
+}
+
+.dock-section:hover,
+.dock-section:focus-visible {
+  color: var(--fg);
+  background: var(--bg);
+  border-left-color: var(--accent);
+  outline: none;
+}
+
+.dock-section:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dock-icon {
+  font-size: var(--text-lg);
+  line-height: 1;
+  width: 24px;
+  text-align: center;
+  flex: 0 0 auto;
+}
+
+.dock-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 180ms ease-out 60ms,
+    transform 180ms var(--ease-standard, ease) 60ms;
+}
+
+.dock--expanded .dock-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.dock-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  background: var(--accent);
+  color: var(--bg);
+  border-radius: 999px;
+  padding: 1px 5px;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* History wrapper & panel */
+
+.dock-history-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.dock-history-wrapper > .dock-section {
+  /* The History section button is the trigger; the panel is its
+     sibling, so the wrapper behaves like a single hover target. */
+}
+
+.dock-history-panel {
+  position: absolute;
+  top: 0;
+  left: 56px;
+  bottom: 0;
+  width: 264px;
+  background: var(--bg-elev);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  animation: fade-in-dock 180ms ease-out;
+}
+
+.dock-history-header {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.dock-history-empty {
+  padding: var(--space-6) var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--fg-dim);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.dock-history-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2);
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.dock-history-item {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: border-color var(--duration-focus) ease-out;
+}
+
+.dock-history-item--active {
+  border-color: var(--accent);
+  background: rgba(124, 92, 255, 0.08);
+}
+
+.dock-history-item-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  min-width: 0;
+  color: var(--fg);
+}
+
+.dock-history-item-main:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.dock-history-pan {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.dock-history-name {
+  font-size: var(--text-2xs);
+  color: var(--fg-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.dock-history-item-delete {
+  flex: 0 0 auto;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-md);
+  color: var(--fg-dim);
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  cursor: pointer;
+  transition: color var(--duration-focus) ease-out,
+    background var(--duration-focus) ease-out;
+}
+
+.dock-history-item-delete:hover {
+  color: var(--bad);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.dock-history-footer {
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.dock-history-clear-all {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg-dim);
+  font-size: var(--text-xs);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--duration-focus) ease-out,
+    border-color var(--duration-focus) ease-out;
+}
+
+.dock-history-clear-all:hover {
+  color: var(--bad);
+  border-color: var(--bad);
+}
+
+@keyframes fade-in-dock {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock,
+  .dock-label,
+  .dock-section {
+    transition: none;
+  }
+}

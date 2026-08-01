@@ -6,6 +6,8 @@ export interface ChatComposerProps {
   onSend: (message: string) => void;
   onStop: () => void;
   streaming: boolean;
+  /** When true, the composer is locked (no plan yet, hidden). */
+  disabled?: boolean;
 }
 
 /**
@@ -16,18 +18,25 @@ export interface ChatComposerProps {
  * disabled to prevent overlapping requests. The textarea auto-resizes up
  * to ``max-height: 160px`` so a long question doesn't push the composer
  * off-screen.
+ *
+ * Pass ``disabled`` to lock the composer before the analyzer has produced
+ * an initial plan; the textarea shows the configured placeholder text and
+ * the send button stays in the disabled state.
  */
-export function ChatComposer({ onSend, onStop, streaming }: ChatComposerProps) {
+export function ChatComposer({ onSend, onStop, streaming, disabled = false }: ChatComposerProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    textareaRef.current?.focus();
-  }, []);
+    if (!disabled) textareaRef.current?.focus();
+  }, [disabled]);
+
+  const isDisabled = disabled || streaming;
 
   function submit() {
+    if (isDisabled) return;
     const trimmed = value.trim();
-    if (!trimmed || streaming) return;
+    if (!trimmed) return;
     onSend(trimmed);
     setValue('');
   }
@@ -49,19 +58,23 @@ export function ChatComposer({ onSend, onStop, streaming }: ChatComposerProps) {
   }, [value]);
 
   const trimmed = value.trim();
-  const canSend = trimmed.length > 0 && !streaming;
+  const canSend = trimmed.length > 0 && !isDisabled;
+
+  const placeholder = disabled
+    ? COPY.composer.disabledHint
+    : COPY.composer.placeholder;
 
   return (
-    <div className="chat-composer" role="group" aria-label="Ask a follow-up question">
+    <div className="chat-composer" role="group" aria-label="Compose message">
       <textarea
         ref={textareaRef}
         className="chat-composer-textarea"
         value={value}
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={COPY.chat.composerPlaceholder}
-        aria-label={COPY.chat.composerPlaceholder}
-        disabled={streaming}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        disabled={isDisabled}
         rows={1}
       />
       {streaming ? (
@@ -69,8 +82,8 @@ export function ChatComposer({ onSend, onStop, streaming }: ChatComposerProps) {
           type="button"
           className="chat-composer-btn chat-composer-btn--stop"
           onClick={onStop}
-          aria-label={COPY.chat.stopAria}
-          title={COPY.chat.stopAria}
+          aria-label={COPY.composer.stopAria}
+          title={COPY.composer.stopAria}
         >
           ■
         </button>
@@ -80,8 +93,8 @@ export function ChatComposer({ onSend, onStop, streaming }: ChatComposerProps) {
           className="chat-composer-btn chat-composer-btn--send"
           onClick={submit}
           disabled={!canSend}
-          aria-label={COPY.chat.sendAria}
-          title={COPY.chat.sendAria}
+          aria-label={disabled ? COPY.composer.disabledHint : COPY.composer.sendAria}
+          title={disabled ? COPY.composer.disabledHint : COPY.composer.sendAria}
         >
           ↑
         </button>

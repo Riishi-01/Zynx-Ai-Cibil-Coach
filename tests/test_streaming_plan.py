@@ -357,10 +357,17 @@ def test_chat_prompt_drops_framework_specifics():
     assert "LABEL ADAPTATIONS" not in CHAT_SYSTEM_PROMPT
 
 
+def _pipeline_first_n(seeded_db, pan, *args):
+    """Drop the new first_name return so existing tests keep their unpacks."""
+    from app.label_service import run_pipeline
+
+    return run_pipeline(pan, *args)
+
+
 def test_facts_block_contains_only_supplied_numbers(seeded_db):
     from app.label_service import run_pipeline
 
-    _, sanitised, facts, _ = run_pipeline("BCDRM2345B", 40000)
+    _, sanitised, facts, _, _name = run_pipeline("BCDRM2345B", 40000)
     block = build_facts_block(facts, sanitised)
 
     assert "612" in block            # score
@@ -372,7 +379,7 @@ def test_facts_block_contains_only_supplied_numbers(seeded_db):
 def test_findings_block_includes_kb_guidance(seeded_db):
     from app.label_service import run_pipeline
 
-    _, sanitised, facts, fired = run_pipeline("BCDRM2345B", 40000)
+    _, sanitised, facts, fired, _name = run_pipeline("BCDRM2345B", 40000)
     block = build_findings_block(facts, sanitised, fired)
 
     assert "Maxed Out" in block
@@ -384,7 +391,7 @@ def test_findings_block_includes_kb_guidance(seeded_db):
 def test_build_prompt_requests_the_plan_fields(seeded_db):
     from app.label_service import run_pipeline
 
-    _, sanitised, facts, fired = run_pipeline("ABCPS1234A", 75000)
+    _, sanitised, facts, fired, _name = run_pipeline("ABCPS1234A", 75000)
     _system, user = build_prompt(sanitised, facts, fired)
 
     for field in CoachPlan.model_fields:
@@ -394,7 +401,7 @@ def test_build_prompt_requests_the_plan_fields(seeded_db):
 def test_chat_prompt_includes_question_and_history(seeded_db):
     from app.label_service import run_pipeline
 
-    _, sanitised, facts, fired = run_pipeline("ABCPS1234A", 75000)
+    _, sanitised, facts, fired, _name = run_pipeline("ABCPS1234A", 75000)
     _system, user = build_chat_prompt(
         sanitised,
         facts,
@@ -414,9 +421,17 @@ def test_prompt_has_no_leaked_placeholders(seeded_db):
     from app.template_renderer import unresolved_placeholders
 
     for cust in get_repository().list_all_customers():
-        _, sanitised, facts, fired = run_pipeline(cust.customer.pan_card)
+        _, sanitised, facts, fired, _name = run_pipeline(cust.customer.pan_card)
         _system, user = build_prompt(sanitised, facts, fired)
         assert not unresolved_placeholders(user), cust.customer.pan_card
+
+
+def test_run_pipeline_returns_first_name(seeded_db):
+    """The dock reads the customer-facing name from the new tuple slot."""
+    from app.label_service import run_pipeline
+
+    _, _, _, _, first_name = run_pipeline("ABCPS1234A", 75000)
+    assert first_name == "Anjali"
 
 
 # --------------------------------------------------------------- streaming ----
@@ -617,7 +632,7 @@ def test_cite_plan_finds_figures_across_nested_fields(seeded_db):
     from app.citations import cite_plan
     from app.label_service import run_pipeline
 
-    _, _, facts, fired = run_pipeline("BCDRM2345B", 40000)
+    _, _, facts, fired, _name = run_pipeline("BCDRM2345B", 40000)
     citations = cite_plan(PLAN, facts, fired)
 
     assert citations
@@ -630,7 +645,7 @@ def test_citations_ignore_ungrounded_numbers(seeded_db):
     from app.citations import generate_citations
     from app.label_service import run_pipeline
 
-    _, _, facts, fired = run_pipeline("BCDRM2345B", 40000)
+    _, _, facts, fired, _name = run_pipeline("BCDRM2345B", 40000)
     citations = generate_citations("The answer is 987654321.", facts, fired)
     assert citations == []
 
@@ -640,7 +655,7 @@ def test_citations_ignore_prose_numerals(seeded_db):
     from app.citations import generate_citations
     from app.label_service import run_pipeline
 
-    _, _, facts, fired = run_pipeline("BCDRM2345B", 40000)
+    _, _, facts, fired, _name = run_pipeline("BCDRM2345B", 40000)
     citations = generate_citations(
         "Do this in 1-2 billing cycles, following all 3 steps.", facts, fired
     )
@@ -652,7 +667,7 @@ def test_citations_reject_ambiguous_matches(seeded_db):
     from app.citations import MAX_AMBIGUITY, generate_citations
     from app.label_service import run_pipeline
 
-    _, _, facts, fired = run_pipeline("BCDRM2345B", 40000)
+    _, _, facts, fired, _name = run_pipeline("BCDRM2345B", 40000)
     citations = generate_citations(
         "Utilisation is 96% and the top card is at 98%.", facts, fired
     )
@@ -667,7 +682,7 @@ def test_citations_match_distinctive_figures(seeded_db):
     from app.citations import generate_citations
     from app.label_service import run_pipeline
 
-    _, _, facts, fired = run_pipeline("BCDRM2345B", 40000)
+    _, _, facts, fired, _name = run_pipeline("BCDRM2345B", 40000)
     citations = generate_citations(
         "Your utilisation is 96%, driven by a card at 98%.", facts, fired
     )
@@ -681,7 +696,7 @@ def test_citations_attach_reason_codes(seeded_db):
     from app.citations import generate_citations
     from app.label_service import run_pipeline
 
-    _, _, facts, fired = run_pipeline("BCDRM2345B", 40000)
+    _, _, facts, fired, _name = run_pipeline("BCDRM2345B", 40000)
     citations = generate_citations(f"Your score is {facts.score}.", facts, fired)
 
     assert citations

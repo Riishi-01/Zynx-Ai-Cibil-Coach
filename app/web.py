@@ -195,7 +195,7 @@ async def analyze_customer(request: Request):
     # HTTP status codes rather than mid-stream errors.
     try:
         canvas = build_canvas_response(pan, monthly_income_inr=income_inr)
-        _record, sanitised, facts, fired = run_pipeline(pan, income_inr)
+        _record, sanitised, facts, fired, _first_name = run_pipeline(pan, income_inr)
     except InvalidPAN as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except CustomerNotFound as exc:
@@ -323,7 +323,7 @@ async def chat_followup(request: Request):
         raise HTTPException(status_code=400, detail=history_error)
 
     try:
-        _record, sanitised, facts, fired = run_pipeline(pan, income_inr)
+        _record, sanitised, facts, fired, _first_name = run_pipeline(pan, income_inr)
     except InvalidPAN as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except CustomerNotFound as exc:
@@ -358,8 +358,17 @@ async def chat_followup(request: Request):
 
         full_answer = ""
         replaced = False
+        chat_metadata: dict | None = None
         try:
-            async for chunk in astream_chat(system_prompt, user_message):
+            async for item in astream_chat(system_prompt, user_message):
+                # ``astream_chat`` yields strings during streaming and a
+                # ``("metadata", {…})`` tuple at the end if usage was
+                # reported. Detect the tuple shape and forward accordingly.
+                if isinstance(item, tuple) and len(item) == 2 and item[0] == "metadata":
+                    chat_metadata = item[1]
+                    continue
+
+                chunk = item
                 if not replaced and contains_out_of_scope_terms(full_answer + chunk):
                     replaced = True
                     yield _sse(
@@ -376,6 +385,9 @@ async def chat_followup(request: Request):
         except Exception as exc:  # noqa: BLE001
             yield _sse("error", {"message": f"Unexpected error: {exc}"})
             return
+
+        if not replaced and chat_metadata is not None:
+            yield _sse("metadata", chat_metadata)
 
         citations: list[ChatCitation] = []
         if full_answer and not replaced:

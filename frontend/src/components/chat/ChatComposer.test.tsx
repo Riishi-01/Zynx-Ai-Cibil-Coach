@@ -8,9 +8,9 @@ import { ChatComposer } from './ChatComposer';
 describe('ChatComposer', () => {
   it('renders the textarea and a disabled send button by default', () => {
     render(<ChatComposer onSend={vi.fn()} onStop={vi.fn()} streaming={false} />);
-    const textarea = screen.getByLabelText(COPY.chat.composerPlaceholder);
+    const textarea = screen.getByLabelText(COPY.composer.placeholder);
     expect(textarea).toBeInTheDocument();
-    const send = screen.getByRole('button', { name: COPY.chat.sendAria });
+    const send = screen.getByRole('button', { name: COPY.composer.sendAria });
     expect(send).toBeInTheDocument();
     expect(send).toBeDisabled();
   });
@@ -18,10 +18,10 @@ describe('ChatComposer', () => {
   it('enables send once the textarea has content', async () => {
     const user = userEvent.setup();
     render(<ChatComposer onSend={vi.fn()} onStop={vi.fn()} streaming={false} />);
-    const send = screen.getByRole('button', { name: COPY.chat.sendAria });
+    const send = screen.getByRole('button', { name: COPY.composer.sendAria });
 
     await user.type(
-      screen.getByLabelText(COPY.chat.composerPlaceholder),
+      screen.getByLabelText(COPY.composer.placeholder),
       'How long does a late stay?',
     );
 
@@ -32,10 +32,10 @@ describe('ChatComposer', () => {
     const user = userEvent.setup();
     const onSend = vi.fn();
     render(<ChatComposer onSend={onSend} onStop={vi.fn()} streaming={false} />);
-    const textarea = screen.getByLabelText(COPY.chat.composerPlaceholder);
+    const textarea = screen.getByLabelText(COPY.composer.placeholder);
 
     await user.type(textarea, '   what is rate shopping   ');
-    await user.click(screen.getByRole('button', { name: COPY.chat.sendAria }));
+    await user.click(screen.getByRole('button', { name: COPY.composer.sendAria }));
 
     expect(onSend).toHaveBeenCalledTimes(1);
     expect(onSend).toHaveBeenCalledWith('what is rate shopping');
@@ -46,15 +46,13 @@ describe('ChatComposer', () => {
     const onSend = vi.fn();
     render(<ChatComposer onSend={onSend} onStop={vi.fn()} streaming={false} />);
     const textarea = screen.getByLabelText(
-      COPY.chat.composerPlaceholder,
+      COPY.composer.placeholder,
     ) as HTMLTextAreaElement;
 
     fireEvent.change(textarea, { target: { value: 'hello' } });
     fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true });
-    // After Shift+Enter the textarea is still active and onSend not called.
     expect(onSend).not.toHaveBeenCalled();
 
-    // Now add the newline to the value the way the real textarea would.
     fireEvent.change(textarea, { target: { value: 'hello\nworld' } });
     expect(textarea.value).toBe('hello\nworld');
 
@@ -69,10 +67,10 @@ describe('ChatComposer', () => {
     const onStop = vi.fn();
     render(<ChatComposer onSend={vi.fn()} onStop={onStop} streaming={true} />);
 
-    const textarea = screen.getByLabelText(COPY.chat.composerPlaceholder);
+    const textarea = screen.getByLabelText(COPY.composer.placeholder);
     expect(textarea).toBeDisabled();
 
-    await user.click(screen.getByRole('button', { name: COPY.chat.stopAria }));
+    await user.click(screen.getByRole('button', { name: COPY.composer.stopAria }));
     expect(onStop).toHaveBeenCalledTimes(1);
   });
 
@@ -82,10 +80,29 @@ describe('ChatComposer', () => {
       <ChatComposer onSend={onSend} onStop={vi.fn()} streaming={true} />,
     );
     const textarea = screen.getByLabelText(
-      COPY.chat.composerPlaceholder,
+      COPY.composer.placeholder,
     ) as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: 'should not send' } });
-    fireEvent.click(screen.getByRole('button', { name: COPY.chat.stopAria }));
+    fireEvent.click(screen.getByRole('button', { name: COPY.composer.stopAria }));
     expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it('locks the composer when disabled is true', () => {
+    render(
+      <ChatComposer
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+        streaming={false}
+        disabled
+      />,
+    );
+    // Use `name` to narrow to the textarea role (textarea uses name=label,
+    // button uses name=label-or-title).
+    const textarea = screen.getByRole('textbox', { name: COPY.composer.disabledHint });
+    expect(textarea).toBeDisabled();
+    const sendButton = screen.getByRole('button', {
+      name: COPY.composer.disabledHint,
+    });
+    expect(sendButton).toBeDisabled();
   });
 });

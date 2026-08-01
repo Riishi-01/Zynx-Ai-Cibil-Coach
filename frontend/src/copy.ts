@@ -28,13 +28,37 @@ export const COPY = {
     emptyNoResponse: 'No analysis received.',
     emptyNoResponseHint: 'You can retry — the canvas may still be useful.',
     crunching: 'Crunching the numbers…',
-    composerPlaceholder: 'Ask about your credit report…',
-    sendAria: 'Send message',
-    stopAria: 'Stop generating',
-    /** Returned by /api/chat when the question is outside the credit scope. */
     outOfScope:
       "I'm your credit coach, so I can only help with credit report questions — score, utilization, payment history, collections, and similar. I can't advise on investments, career, housing, or tax planning. Want to ask something credit-related instead?",
     outOfScopeShort: "That's outside what I cover as a credit coach.",
+  },
+  composer: {
+    placeholder: 'Ask about your credit report…',
+    sendAria: 'Send message',
+    stopAria: 'Stop generating',
+    disabledHint: 'Complete the analysis first to start chatting.',
+  },
+  message: {
+    metadataAria: 'Response metadata',
+    clearChat: 'Clear conversation',
+    clearChatConfirmTitle: 'Clear conversation?',
+    clearChatConfirmBody:
+      'This removes your follow-up questions and the AI replies. The original coaching plan stays.',
+    clearChatConfirmCancel: 'Cancel',
+    clearChatConfirmConfirm: 'Clear',
+  },
+  dock: {
+    home: 'Home',
+    homeAria: 'Home — return to the input form',
+    history: 'History',
+    historyAria: (count: number) =>
+      `History (${count} conversation${count === 1 ? '' : 's'})`,
+    historyEmpty: 'No analyses yet — your first run will appear here.',
+    historyClearAll: 'Clear all',
+    historyDelete: 'Delete conversation',
+    chat: 'Chat',
+    chatAria: 'Clear chat history',
+    chatDisabledHint: 'Chat is empty',
   },
   analysisFooter: {
     /** Display name shown in the footer — matches the actual model used. */

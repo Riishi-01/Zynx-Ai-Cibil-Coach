@@ -57,7 +57,7 @@ def test_fired_flags_match_rule_engine(all_pans, seeded_db):
     from app.label_service import run_pipeline
 
     for pan in all_pans:
-        _, _, _, fired = run_pipeline(pan)
+        _, _, _, fired, _name = run_pipeline(pan)
         expected = {f.label_id for f in fired}
 
         response = build_labels_response(pan)

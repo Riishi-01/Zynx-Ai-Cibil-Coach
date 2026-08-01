@@ -268,7 +268,7 @@ def build_canvas_response(
     pan_card: str, monthly_income_inr: Optional[int] = None
 ) -> CanvasResponse:
     """Assemble the full canvas payload for a customer."""
-    _record, sanitised, facts, fired = run_pipeline(pan_card, monthly_income_inr)
+    record, sanitised, facts, fired, first_name = run_pipeline(pan_card, monthly_income_inr)
 
     return CanvasResponse(
         pan_masked=sanitised.pan_masked,
@@ -280,4 +280,5 @@ def build_canvas_response(
         payment_heatmap=build_payment_heatmap(facts, sanitised),
         # Reuses the single pipeline run above rather than recomputing.
         labels=labels_response_from(sanitised, facts, fired),
+        first_name=first_name,
     )

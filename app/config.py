@@ -60,7 +60,10 @@ CIBIL_DATA_PATH = Path(__file__).parent.parent / "build_docs" / "cibil_data.json
 LABEL_KB_PATH = DATA_DIR / "label_kb.json"
 
 # LLM
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+# Pinned to a specific snapshot id so the chat RAG metadata footer shows
+# the exact model the response came from. ``OPENAI_MODEL`` remains
+# overridable via env for ops rollouts / A-B tests.
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini-2024-07-18")
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.3"))
 LLM_TIMEOUT_SECONDS = int(os.getenv("LLM_TIMEOUT_SECONDS", "30"))
 LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "1100"))

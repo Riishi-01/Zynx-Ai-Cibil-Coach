@@ -1,0 +1,87 @@
+/**
+ * ConfirmDialog styles — minimal modal that floats above the docked
+ * layout. Backdrop dismisses on outside click; danger button mirrors
+ * the red Clear affordance.
+ */
+
+.confirm-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 6, 18, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: confirm-dialog-fade 160ms ease-out;
+}
+
+.confirm-dialog {
+  width: min(420px, calc(100vw - 48px));
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  animation: confirm-dialog-pop 180ms ease-out;
+}
+
+.confirm-dialog-title {
+  font-size: var(--text-md);
+  margin: 0 0 var(--space-3) 0;
+  color: var(--fg);
+}
+
+.confirm-dialog-body {
+  font-size: var(--text-sm);
+  color: var(--fg-dim);
+  margin: 0 0 var(--space-5) 0;
+  line-height: 1.5;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+
+.confirm-dialog-btn {
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  transition: background var(--duration-focus) ease-out,
+    border-color var(--duration-focus) ease-out,
+    color var(--duration-focus) ease-out;
+}
+
+.confirm-dialog-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.confirm-dialog-btn--secondary:hover {
+  border-color: var(--accent);
+}
+
+.confirm-dialog-btn--danger {
+  background: var(--bad);
+  border-color: var(--bad);
+  color: white;
+}
+
+.confirm-dialog-btn--danger:hover {
+  filter: brightness(1.05);
+}
+
+@keyframes confirm-dialog-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes confirm-dialog-pop {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}

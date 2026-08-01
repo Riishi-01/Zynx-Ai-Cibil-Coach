@@ -192,9 +192,18 @@ async def astream_chat(
     user_message: str,
     model=None,  # kept for test compatibility
 ) -> AsyncIterator[str]:
-    """Stream a follow-up answer as markdown text chunks."""
+    """Stream a follow-up answer as markdown text chunks.
+
+    Mirrors ``astream_plan`` shape so the chat SSE handler can emit a
+    matching ``metadata`` frame when usage is reported. Yields string
+    fragments interleaved with a ``("metadata", {model, prompt_tokens,
+    completion_tokens})`` tuple at the end if OpenAI returned usage.
+    """
     client = _get_client()
     messages = _build_messages(system_prompt, user_message)
+
+    usage_data: Optional[dict] = None
+    model_name: Optional[str] = None
 
     try:
         stream = await client.chat.completions.create(
@@ -203,14 +212,35 @@ async def astream_chat(
             temperature=LLM_TEMPERATURE,
             max_tokens=LLM_MAX_TOKENS,
             stream=True,
+            stream_options={"include_usage": True},
         )
 
         async for chunk in stream:
+            if chunk.usage:
+                usage_data = {
+                    "prompt_tokens": chunk.usage.prompt_tokens,
+                    "completion_tokens": chunk.usage.completion_tokens,
+                }
+                if chunk.model:
+                    model_name = chunk.model
+
             if not chunk.choices:
                 continue
-            content = chunk.choices[0].delta.content
+
+            delta = chunk.choices[0].delta
+            content = delta.content if delta else None
             if content:
                 yield content
 
+            if chunk.model and not model_name:
+                model_name = chunk.model
+
     except Exception as exc:
         raise LLMError(f"Chat streaming failed: {exc}") from exc
+
+    if usage_data is not None:
+        yield ("metadata", {
+            "model": model_name or OPENAI_MODEL,
+            "prompt_tokens": usage_data["prompt_tokens"],
+            "completion_tokens": usage_data["completion_tokens"],
+        })

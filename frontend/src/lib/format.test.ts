@@ -1,6 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import { formatIncomeInput, formatIndianDigits, formatInr, formatInrFromPaise, formatPct } from './format';
+import {
+  fmtDuration,
+  fmtInt,
+  fmtRelative,
+  formatIncomeInput,
+  formatIndianDigits,
+  formatInr,
+  formatInrFromPaise,
+  formatPct,
+} from './format';
 
 /**
  * Golden pairs generated directly from app/template_renderer.py's
@@ -93,5 +102,70 @@ describe('formatIncomeInput', () => {
 
   it('handles a single digit', () => {
     expect(formatIncomeInput('5')).toBe('5');
+  });
+});
+
+describe('fmtInt', () => {
+  it('uses Indian thousands grouping', () => {
+    expect(fmtInt(1234567)).toBe('12,34,567');
+  });
+
+  it('returns the input untouched below 1000', () => {
+    expect(fmtInt(999)).toBe('999');
+  });
+});
+
+describe('fmtDuration', () => {
+  it('formats ms with one decimal place', () => {
+    expect(fmtDuration(17_600)).toBe('17.6s');
+  });
+
+  it('returns 0.0s for zero ms', () => {
+    expect(fmtDuration(0)).toBe('0.0s');
+  });
+});
+
+describe('fmtRelative', () => {
+  const now = new Date('2026-08-01T12:00:00.000Z');
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('returns "just now" for under 45 seconds', () => {
+    const ts = new Date(now.getTime() - 20_000).toISOString();
+    expect(fmtRelative(ts)).toBe('just now');
+  });
+
+  it('formats minutes', () => {
+    const ts = new Date(now.getTime() - 5 * 60_000).toISOString();
+    expect(fmtRelative(ts)).toBe('5m ago');
+  });
+
+  it('formats hours', () => {
+    const ts = new Date(now.getTime() - 3 * 60 * 60_000).toISOString();
+    expect(fmtRelative(ts)).toBe('3h ago');
+  });
+
+  it('formats days', () => {
+    const ts = new Date(now.getTime() - 2 * 24 * 60 * 60_000).toISOString();
+    expect(fmtRelative(ts)).toBe('2d ago');
+  });
+
+  it('falls back to a date string for older entries', () => {
+    const ts = new Date(now.getTime() - 30 * 24 * 60 * 60_000).toISOString();
+    // jsdom's Intl.DateTimeFormat ignores the locale and emits e.g. "2 Jul".
+    expect(fmtRelative(ts)).toMatch(/[A-Za-z0-9 ]+/);
+    expect(fmtRelative(ts)).not.toMatch(/ago$/);
+  });
+
+  it('returns an empty string for invalid input', () => {
+    expect(fmtRelative('')).toBe('');
+    expect(fmtRelative('not a date')).toBe('');
   });
 });

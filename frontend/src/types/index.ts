@@ -168,6 +168,9 @@ export interface CanvasResponse {
   utilization: UtilizationView;
   payment_heatmap: PaymentHeatmap;
   labels: LabelsResponse;
+
+  /** Customer-facing name (server-supplied, never put into the LLM prompt). */
+  first_name: string;
 }
 
 // -------------------------------------------------- streaming coach plan ----
