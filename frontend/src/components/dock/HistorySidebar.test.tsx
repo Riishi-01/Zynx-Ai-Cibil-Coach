@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
+import { COPY } from '../../copy';
 import type { Conversation } from '../../lib/conversationStore';
 import { HistorySidebar } from './HistorySidebar';
 
@@ -35,7 +36,9 @@ describe('HistorySidebar', () => {
       />,
     );
 
-    expect(screen.getByText(/past analyses will show up here/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(COPY.dock.historyEmpty),
+    ).toBeInTheDocument();
   });
 
   it('falls back to the customer name when no chat turns exist yet', () => {

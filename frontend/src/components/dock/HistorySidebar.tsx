@@ -34,9 +34,7 @@ export function HistorySidebar({
       <div className="dock-history-header">{COPY.dock.history}</div>
 
       {conversations.length === 0 ? (
-        <div className="dock-history-empty">
-          Your past analyses will show up here. Start with the form to record your first one.
-        </div>
+        <div className="dock-history-empty">{COPY.dock.historyEmpty}</div>
       ) : (
         <ul className="dock-history-list">
           {conversations.map((conv) => {
