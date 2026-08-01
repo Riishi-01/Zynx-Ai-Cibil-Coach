@@ -7,7 +7,7 @@
 .chat-pane {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 480px;
   background: var(--bg-elev);
   border: 1px solid var(--border);
@@ -109,11 +109,6 @@
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   background: var(--bg);
-  border-top: none;
-}
-
-.chat-composer-stack > .chat-composer {
-  border-top: 1px solid var(--border);
 }
 
 .chat-composer-textarea {

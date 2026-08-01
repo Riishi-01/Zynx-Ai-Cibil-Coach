@@ -17,9 +17,6 @@
   padding: var(--space-3) 0;
   background: var(--bg-elev);
   border-right: 1px solid var(--border);
-  min-height: 100vh;
-  position: relative;
-  z-index: 1;
 }
 
 .dock-section {
