@@ -1,9 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Conversation } from '../../lib/conversationStore';
-import { COPY } from '../../copy';
 import { Dock } from './Dock';
 
 function makeConversation(overrides: Partial<Conversation> = {}): Conversation {
@@ -29,44 +27,40 @@ describe('Dock', () => {
   let onPick: (id: string) => void;
   let onDelete: (id: string) => void;
   let onClearAll: () => void;
-  let onClearChat: () => void;
+  let onHistoryOpenChange: (open: boolean) => void;
 
   beforeEach(() => {
     onHome = vi.fn();
     onPick = vi.fn();
     onDelete = vi.fn();
     onClearAll = vi.fn();
-    onClearChat = vi.fn();
+    onHistoryOpenChange = vi.fn();
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('renders the three dock sections', () => {
+  it('renders the home and history affordances', () => {
     render(
       <Dock
+        expanded={false}
+        onHistoryOpenChange={onHistoryOpenChange}
         onHome={onHome}
         onPickConversation={onPick}
         onClearAllHistory={onClearAll}
         onDeleteConversation={onDelete}
         conversations={[]}
         activeConversationId={null}
-        inSession={false}
-        hasChatTurns={false}
-        onClearChat={onClearChat}
       />,
     );
 
     expect(
-      screen.getByRole('button', { name: COPY.dock.homeAria }),
+      screen.getByRole('button', { name: /return to the input form/i }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: COPY.dock.historyAria(0) }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: COPY.dock.chatAria }),
-    ).toBeInTheDocument();
+    const history = screen.getByRole('button', { name: /History \(0 conversations\)/i });
+    expect(history).toBeInTheDocument();
+    expect(history).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('shows the history badge with the conversation count', () => {
@@ -76,71 +70,68 @@ describe('Dock', () => {
     ];
     render(
       <Dock
+        expanded={false}
+        onHistoryOpenChange={onHistoryOpenChange}
         onHome={onHome}
         onPickConversation={onPick}
         onClearAllHistory={onClearAll}
         onDeleteConversation={onDelete}
         conversations={conversations}
         activeConversationId={null}
-        inSession={false}
-        hasChatTurns={false}
-        onClearChat={onClearChat}
       />,
     );
 
     expect(screen.getByText('2')).toBeInTheDocument();
   });
 
-  it('expands the dock while the History wrapper is hovered', async () => {
+  it('expands when the wrapper is hovered and collapses after the timer', () => {
     vi.useFakeTimers();
     render(
       <Dock
+        expanded={false}
+        onHistoryOpenChange={onHistoryOpenChange}
         onHome={onHome}
         onPickConversation={onPick}
         onClearAllHistory={onClearAll}
         onDeleteConversation={onDelete}
-        conversations={[makeConversation()]}
+        conversations={[]}
         activeConversationId={null}
-        inSession={false}
-        hasChatTurns={false}
-        onClearChat={onClearChat}
       />,
     );
 
     const nav = screen.getByRole('navigation');
-    expect(nav.classList.contains('dock--expanded')).toBe(false);
-
     const wrapper = nav.querySelector('.dock-history-wrapper');
     if (!wrapper) throw new Error('history wrapper not found');
+
     fireEvent.mouseEnter(wrapper);
-    expect(nav.classList.contains('dock--expanded')).toBe(true);
+    expect(onHistoryOpenChange).toHaveBeenLastCalledWith(true);
 
     fireEvent.mouseLeave(wrapper);
     act(() => {
       vi.advanceTimersByTime(220);
     });
-    expect(nav.classList.contains('dock--expanded')).toBe(false);
+    expect(onHistoryOpenChange).toHaveBeenLastCalledWith(false);
   });
 
-  it('clears the collapse timer when the user re-enters the wrapper', () => {
+  it('cancels the collapse when the wrapper is re-entered', () => {
     vi.useFakeTimers();
     render(
       <Dock
+        expanded={false}
+        onHistoryOpenChange={onHistoryOpenChange}
         onHome={onHome}
         onPickConversation={onPick}
         onClearAllHistory={onClearAll}
         onDeleteConversation={onDelete}
-        conversations={[makeConversation()]}
+        conversations={[]}
         activeConversationId={null}
-        inSession={false}
-        hasChatTurns={false}
-        onClearChat={onClearChat}
       />,
     );
 
     const nav = screen.getByRole('navigation');
     const wrapper = nav.querySelector('.dock-history-wrapper');
     if (!wrapper) throw new Error('history wrapper not found');
+
     fireEvent.mouseEnter(wrapper);
     fireEvent.mouseLeave(wrapper);
     act(() => {
@@ -150,63 +141,42 @@ describe('Dock', () => {
     act(() => {
       vi.advanceTimersByTime(120);
     });
-    // Re-entering should have reset the timer; it should still be expanded.
-    expect(nav.classList.contains('dock--expanded')).toBe(true);
+    expect(onHistoryOpenChange).toHaveBeenLastCalledWith(true);
   });
 
-  it('calls onHome when the Home button is clicked', async () => {
-    const user = userEvent.setup();
+  it('opens the history sidebar when expanded=true', () => {
     render(
       <Dock
+        expanded
+        onHistoryOpenChange={onHistoryOpenChange}
         onHome={onHome}
         onPickConversation={onPick}
         onClearAllHistory={onClearAll}
         onDeleteConversation={onDelete}
-        conversations={[]}
-        activeConversationId={null}
-        inSession={false}
-        hasChatTurns={false}
-        onClearChat={onClearChat}
-      />,
-    );
-    await user.click(screen.getByRole('button', { name: COPY.dock.homeAria }));
-    expect(onHome).toHaveBeenCalledTimes(1);
-  });
-
-  it('disables the chat clear button when there are no chat turns', () => {
-    render(
-      <Dock
-        onHome={onHome}
-        onPickConversation={onPick}
-        onClearAllHistory={onClearAll}
-        onDeleteConversation={onDelete}
-        conversations={[]}
-        activeConversationId={null}
-        inSession={true}
-        hasChatTurns={false}
-        onClearChat={onClearChat}
+        conversations={[makeConversation({ id: 'c1' })]}
+        activeConversationId={'c1'}
       />,
     );
     expect(
-      screen.getByRole('button', { name: COPY.dock.chatAria }),
-    ).toBeDisabled();
+      screen.getByRole('region', { name: /past conversations/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /ABCPS\*\*\*\*A/ })).toBeInTheDocument();
   });
 
-  it('exposes a clear action when a session has chat turns', () => {
+  it('calls onHome when the Home button is clicked', () => {
     render(
       <Dock
+        expanded={false}
+        onHistoryOpenChange={onHistoryOpenChange}
         onHome={onHome}
         onPickConversation={onPick}
         onClearAllHistory={onClearAll}
         onDeleteConversation={onDelete}
         conversations={[]}
         activeConversationId={null}
-        inSession={true}
-        hasChatTurns={true}
-        onClearChat={onClearChat}
       />,
     );
-    const button = screen.getByRole('button', { name: COPY.dock.chatAria });
-    expect(button).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: /return to the input form/i }));
+    expect(onHome).toHaveBeenCalledTimes(1);
   });
 });

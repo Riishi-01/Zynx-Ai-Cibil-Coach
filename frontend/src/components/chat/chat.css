@@ -1,14 +1,14 @@
 /**
- * Chat pane styling: message list, composer, streaming cursor, plan sections.
+ * Chat pane styling: message list, composer stack (composer +
+ * clear-conversation), streaming cursor, plan sections,
+ * per-message metadata + citation pills.
  */
-@import './MessageMetadata.css';
 
 .chat-pane {
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 400px;
-  max-height: calc(100vh - 120px);
+  min-height: 480px;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -26,26 +26,36 @@
 
 .chat-message {
   max-width: 90%;
-  animation: fade-up 250ms ease-out;
+  animation: fade-up 220ms ease-out;
+  border-radius: var(--radius-md);
+  transition: outline-color var(--duration-focus) ease-out;
+}
+
+.chat-message:focus-within {
+  /* Helps keyboard users locate the active message. */
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .chat-message--user {
   align-self: flex-end;
   background: rgba(124, 92, 255, 0.1);
-  border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
   font-size: var(--text-base);
 }
 
-/* Assistant bubble mirrors the user bubble's surface treatment — soft bg +
-   radius — with the accent stripe as the differentiator instead of the only
-   structure. */
 .chat-message--assistant {
   align-self: flex-start;
   background: rgba(255, 255, 255, 0.02);
   border-left: 2px solid var(--accent);
-  border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
+}
+
+.chat-message--assistant.chat-message--finalized {
+  /* Subtle "send is now active" cue after each assistant turn completes. */
+  outline: 1px solid var(--accent);
+  outline-offset: 4px;
+  animation: fade-up 220ms ease-out, finalized-pulse 600ms ease-out 220ms;
 }
 
 .chat-message--error {
@@ -55,6 +65,12 @@
   padding: var(--space-2) var(--space-4);
   background: rgba(239, 68, 71, 0.08);
   border-radius: var(--radius-sm);
+}
+
+@keyframes finalized-pulse {
+  0%   { outline-color: var(--accent); }
+  60%  { outline-color: var(--accent); }
+  100% { outline-color: transparent; }
 }
 
 .chat-empty {
@@ -72,39 +88,32 @@
   text-align: center;
 }
 
-.chat-empty button {
-  background: transparent;
-  border: 1px solid var(--border-strong);
-  color: var(--fg);
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: var(--text-sm);
-}
-
-.chat-empty button:hover {
-  border-color: var(--accent);
-}
-
-.chat-empty button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 .streaming-cursor {
   animation: cursor-blink 1s steps(1) infinite;
   color: var(--accent);
   font-weight: 700;
 }
 
-/* Composer: textarea on the left, send/stop button on the right. */
+/* Composer stack: composer + an optional "Clear conversation" button. */
+
+.chat-composer-stack {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
 .chat-composer {
   display: flex;
   align-items: flex-end;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border);
   background: var(--bg);
+  border-top: none;
+}
+
+.chat-composer-stack > .chat-composer {
+  border-top: 1px solid var(--border);
 }
 
 .chat-composer-textarea {
@@ -120,7 +129,8 @@
   max-height: 160px;
   min-height: 40px;
   line-height: 1.4;
-  transition: border-color var(--duration-focus) ease-out;
+  transition: border-color var(--duration-focus) ease-out,
+    box-shadow var(--duration-focus) ease-out;
 }
 
 .chat-composer-textarea:focus-visible {
@@ -142,8 +152,16 @@
   align-items: center;
   justify-content: center;
   font-size: var(--text-md);
+  border: none;
+  cursor: pointer;
   transition: background var(--duration-focus) ease-out,
-    transform 200ms ease-out;
+    transform var(--duration-focus) ease-out,
+    opacity var(--duration-focus) ease-out;
+}
+
+.chat-composer-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .chat-composer-btn--send {
@@ -156,7 +174,9 @@
 }
 
 .chat-composer-btn--send:disabled {
-  opacity: 0.3;
+  background: var(--border);
+  color: var(--fg-dim);
+  opacity: 0.6;
 }
 
 .chat-composer-btn--stop {
@@ -168,12 +188,39 @@
   transform: scale(1.05);
 }
 
-/* Citation pills — row of small chips below an assistant reply. */
+/* Clear-conversation row, hidden until the first turn completes. */
+
+.chat-clear-conversation {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--fg-dim);
+  font-size: var(--text-xs);
+  font-family: var(--font-ui);
+  padding: var(--space-2) var(--space-4);
+  text-align: right;
+  cursor: pointer;
+  transition: color var(--duration-focus) ease-out;
+  animation: fade-in 220ms ease-out;
+}
+
+.chat-clear-conversation:hover {
+  color: var(--bad);
+}
+
+.chat-clear-conversation:focus-visible {
+  outline: 2px solid var(--bad);
+  outline-offset: -2px;
+  color: var(--bad);
+}
+
+/* Citation pills */
+
 .chat-citations {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
+  gap: var(--space-1);
+  margin-top: var(--space-3);
   padding-top: var(--space-2);
   border-top: 1px solid var(--border);
 }
@@ -189,6 +236,8 @@
   padding: 2px var(--space-2);
   border-radius: 999px;
   cursor: default;
+  transition: color var(--duration-focus) ease-out,
+    border-color var(--duration-focus) ease-out;
 }
 
 .chat-citation-pill:hover {
@@ -242,50 +291,15 @@
   margin-top: var(--space-2);
 }
 
-/* Model footer — small-caps label/value pills distributed across the row
-   instead of one right-aligned terminal-style line. */
-.model-footer {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-2xs);
-  color: var(--fg-dim);
-  background: var(--bg);
-  border-top: 1px solid var(--border);
-}
-
-.model-footer-pair {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-1);
-  font-family: var(--font-mono);
-}
-
-.model-footer-label {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: var(--text-2xs);
-  color: var(--fg-dim);
-  opacity: 0.7;
-}
-
-.model-footer-value {
-  font-size: var(--text-xs);
-  color: var(--fg);
-  font-family: var(--font-mono);
-}
-
-.model-footer-sep {
-  width: 1px;
-  height: 12px;
-  background: var(--border);
-  margin: 0 var(--space-1);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .chat-message {
+  .chat-message,
+  .chat-composer-textarea,
+  .chat-composer-btn,
+  .chat-clear-conversation,
+  .analyzer,
+  .dock,
+  .dock-label {
     animation: none;
+    transition: none;
   }
 }

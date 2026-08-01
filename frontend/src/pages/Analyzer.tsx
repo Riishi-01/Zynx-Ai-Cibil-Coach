@@ -46,15 +46,10 @@ function emptyConversation(): Conversation {
 /**
  * Shell layout: dock on the left, IDLE form or session view on the right.
  *
- * State flow:
- *   IDLE  — user fills the form.
- *   SUBMIT — POST /api/analyze streams back canvas + plan + metadata,
- *            we synthesise the analyzer's first response into the
- *            conversation store, then promote it to active.
- *   VIEW — ChatPane hydrates from the persisted conversation; /api/analyze
- *            is never called again for the same conversation.
- *
- * Clearing a chat keeps the analyzer's initial plan intact.
+ * The dock column width tracks the `.analyzer--expanded` toggle in
+ * analyzer.css; we flip that class here whenever the History trigger
+ * hovers or is focused, so the chat pane reflows rather than getting
+ * covered.
  */
 export function Analyzer() {
   const [conversations, setConversations] = useState<Conversation[]>(() =>
@@ -64,7 +59,7 @@ export function Analyzer() {
     null,
   );
   const [isStreamingAnalyze, setStreamingAnalyze] = useState(false);
-  const [confirmClear, setConfirmClear] = useState(false);
+  const [isHistoryExpanded, setHistoryExpanded] = useState(false);
   const reducedMotion = useReducedMotion();
 
   const activeConversation = activeConversationId
@@ -87,6 +82,7 @@ export function Analyzer() {
 
   const handlePickConversation = useCallback((id: string) => {
     setActiveConversationId(id);
+    setHistoryExpanded(false);
   }, []);
 
   const handleDeleteConversation = useCallback(
@@ -99,9 +95,6 @@ export function Analyzer() {
   );
 
   const handleClearAllHistory = useCallback(() => {
-    // Wipe every stored conversation but keep the active session's open
-    // record; clearing whole history isn't destructive when the user is
-    // mid-session.
     const active = activeConversationId;
     setConversations((prev) => {
       prev.forEach((conv) => {
@@ -112,8 +105,6 @@ export function Analyzer() {
     refreshConversations();
   }, [activeConversationId, refreshConversations]);
 
-  // Subscribed turn handler — Conversation.turns lists in the most recent
-  // order. We expect callers to append in order.
   const handleConversationUpdate = useCallback(
     (updated: Conversation) => {
       persistConversation(updated);
@@ -122,27 +113,14 @@ export function Analyzer() {
   );
 
   const handleHome = useCallback(() => {
-    // Home does not clear the active conversation — it merely hides the
-    // session. The dock history still lists it.
     setActiveConversationId(null);
   }, []);
 
-  const handleClearChatRequest = useCallback(() => {
-    if (!activeConversation) return;
-    if (activeConversation.turns.length === 0) return;
-    setConfirmClear(true);
-  }, [activeConversation]);
-
-  const handleClearChatConfirm = useCallback(() => {
+  const handleClearChat = useCallback(() => {
     if (!activeConversation) return;
     const cleared = clearTurns(activeConversation.id) ?? activeConversation;
     persistConversation(cleared);
-    setConfirmClear(false);
   }, [activeConversation, persistConversation]);
-
-  const handleClearChatCancel = useCallback(() => {
-    setConfirmClear(false);
-  }, []);
 
   const handleSubmit = useCallback(
     async (values: { pan: string; incomeInr: number; turnstileToken: string | null }) => {
@@ -251,8 +229,6 @@ export function Analyzer() {
           }
         }
       } catch (err) {
-        // Surface a transient error state in the analyzer reducer for
-        // future IDLE view. For now, log; the page can show a banner.
         // eslint-disable-next-line no-console
         console.error('Analyze failed', err);
         setStreamingAnalyze(false);
@@ -262,17 +238,16 @@ export function Analyzer() {
   );
 
   return (
-    <div className="analyzer">
+    <div className={`analyzer ${isHistoryExpanded ? 'analyzer--expanded' : ''}`}>
       <Dock
+        expanded={isHistoryExpanded}
+        onHistoryOpenChange={setHistoryExpanded}
         onHome={handleHome}
         onPickConversation={handlePickConversation}
         onClearAllHistory={handleClearAllHistory}
         onDeleteConversation={handleDeleteConversation}
-        onClearChat={handleClearChatRequest}
         conversations={conversations}
         activeConversationId={activeConversationId}
-        inSession={activeConversationId !== null}
-        hasChatTurns={!!activeConversation && activeConversation.turns.length > 0}
       />
 
       <main className="analyzer-main">
@@ -294,19 +269,10 @@ export function Analyzer() {
           <SessionView
             conversation={activeConversation}
             onConversationUpdate={handleConversationUpdate}
+            onClearChat={handleClearChat}
           />
         ) : null}
       </main>
-
-      <ConfirmDialog
-        open={confirmClear}
-        title={COPY.message.clearChatConfirmTitle}
-        body={COPY.message.clearChatConfirmBody}
-        confirmLabel={COPY.message.clearChatConfirmConfirm}
-        cancelLabel={COPY.message.clearChatConfirmCancel}
-        onConfirm={handleClearChatConfirm}
-        onCancel={handleClearChatCancel}
-      />
     </div>
   );
 }
@@ -314,23 +280,39 @@ export function Analyzer() {
 interface SessionViewProps {
   conversation: Conversation;
   onConversationUpdate: (conv: Conversation) => void;
+  onClearChat: () => void;
 }
 
-function SessionView({ conversation, onConversationUpdate }: SessionViewProps) {
+function SessionView({
+  conversation,
+  onConversationUpdate,
+  onClearChat,
+}: SessionViewProps) {
   const [canvasData, setCanvasData] = useState<CanvasResponse | null>(
     conversation.canvas,
   );
+  const [confirmClear, setConfirmClear] = useState(false);
   const turnstileSiteKey = getTurnstileSiteKey();
 
-  // Hydrate the canvas from the conversation prop on first mount.
   useEffect(() => {
     if (canvasData === null && conversation.canvas) {
       setCanvasData(conversation.canvas);
     }
   }, [canvasData, conversation.canvas]);
 
+  // The docked Chat affordance was removed in favour of a chat-pane
+  // "Clear conversation" affordance. Wires the confirm dialog.
+  const requestClear = () => setConfirmClear(true);
+  const cancelClear = () => setConfirmClear(false);
+  const confirmClearAction = () => {
+    setConfirmClear(false);
+    onClearChat();
+  };
+
+  const canClear = conversation.turns.length > 0;
+
   return (
-    <div className="analyzer-panes">
+    <div className="analyzer-session">
       <section
         className="analyzer-pane analyzer-pane--chat"
         aria-label={COPY.analyzer.chatSection}
@@ -340,6 +322,7 @@ function SessionView({ conversation, onConversationUpdate }: SessionViewProps) {
           onConversationUpdate={onConversationUpdate}
           canRunAnalyzer={false}
           turnstileToken={turnstileSiteKey}
+          onRequestClear={canClear ? requestClear : undefined}
         />
       </section>
       <section
@@ -348,6 +331,16 @@ function SessionView({ conversation, onConversationUpdate }: SessionViewProps) {
       >
         <CanvasPane data={canvasData} />
       </section>
+
+      <ConfirmDialog
+        open={confirmClear}
+        title={COPY.message.clearChatConfirmTitle}
+        body={COPY.message.clearChatConfirmBody}
+        confirmLabel={COPY.message.clearChatConfirmConfirm}
+        cancelLabel={COPY.message.clearChatConfirmCancel}
+        onConfirm={confirmClearAction}
+        onCancel={cancelClear}
+      />
     </div>
   );
 }

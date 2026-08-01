@@ -12,13 +12,12 @@ import { ChatMessage, type ChatMessageData } from './ChatMessage';
 import { PlanView } from './PlanView';
 
 interface ChatPaneProps {
-  /** When present, hydrates from the saved conversation instead of calling /api/analyze. */
   conversation: Conversation;
-  /** Fired after every local mutation. The page persists via the conversation store. */
   onConversationUpdate: (conv: Conversation) => void;
-  /** Suppress the initial /api/analyze call when the parent supplies a fresh conversation. */
   canRunAnalyzer: boolean;
   turnstileToken?: string | null;
+  /** When provided, a Clear-conversation button is rendered below the composer. */
+  onRequestClear?: () => void;
 }
 
 const NEAR_BOTTOM_PX = 80;
@@ -37,22 +36,19 @@ function toHistoryTurns(turns: ConversationTurn[]) {
 }
 
 /**
- * The chat pane: hydrated plan + follow-up messages + composer.
+ * The chat pane: hydrated plan + follow-up messages + composer + clear
+ * affordance. Driven by a `Conversation` prop; never calls /api/analyze
+ * directly (the page owns that pipeline).
  *
- * Designed to be paired with the dock. On mount, it renders whatever is
- * already in ``conversation``: the initial plan (with its own
- * MessageMetadata), then each prior follow-up turn. No /api/analyze call
- * is issued when the conversation is hydrated.
- *
- * When ``canRunAnalyzer`` is true (e.g. the user just submitted the form)
- * the parent can call ``triggerInitialAnalysis``; this pane waits for
- * the resulting conversation to land before mounting.
+ * Chat RAG wiring (citations, guardrails, replace) is preserved
+ * alongside the new per-message metadata event.
  */
 export function ChatPane({
   conversation,
   onConversationUpdate,
   canRunAnalyzer,
   turnstileToken,
+  onRequestClear,
 }: ChatPaneProps) {
   const followup = useStream();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -61,15 +57,11 @@ export function ChatPane({
   const activeRequestStartRef = useRef<number | null>(null);
   const activeAccumulatorRef = useRef('');
 
-  // Capturing the conversation prop in a ref so callbacks see the latest
-  // version without re-binding each tick.
   const conversationRef = useRef(conversation);
   useEffect(() => {
     conversationRef.current = conversation;
   }, [conversation]);
 
-  // Hydrate the message list from the conversation every time the
-  // conversation prop changes (initial mount + history item picked).
   const [hydratedId, setHydratedId] = useState(conversation.id);
   const [initialMessages, setInitialMessages] = useState<ChatMessageData[]>(() =>
     conversation.initialPlan
@@ -95,12 +87,11 @@ export function ChatPane({
       citations: turn.citations,
     })),
   );
-  const [error, setError] = useState<string | null>(null);
+  const [justFinalized, setJustFinalized] = useState<string | null>(null);
 
   useEffect(() => {
     if (hydratedId === conversation.id) return;
     setHydratedId(conversation.id);
-    setError(null);
     setTurns(
       conversation.turns.map<ChatMessageData>((turn, idx) => ({
         id: `turn-${conversation.id}-${idx}`,
@@ -129,7 +120,9 @@ export function ChatPane({
     activeAccumulatorRef.current = '';
   }, [conversation, hydratedId]);
 
-  function patchActiveMessage(updater: (m: ChatMessageData) => ChatMessageData) {
+  function patchActiveMessage(
+    updater: (m: ChatMessageData) => ChatMessageData,
+  ) {
     const id = activeMessageIdRef.current;
     if (!id) return;
     setTurns((prev) =>
@@ -162,11 +155,10 @@ export function ChatPane({
     (updates: Partial<ChatMessageData> = {}) => {
       const id = activeMessageIdRef.current;
       if (!id) return;
-      const messageId = id;
-      const finalMessage = turns.find((m) => m.id === messageId);
+      const finalMessage = turns.find((m) => m.id === id);
       if (!finalMessage) return;
       setTurns((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, ...updates, streaming: false } : m)),
+        prev.map((m) => (m.id === id ? { ...m, ...updates, streaming: false } : m)),
       );
       const finalContent = updates.content ?? finalMessage.content;
       const finalMetadata = updates.metadata ?? finalMessage.metadata;
@@ -184,6 +176,12 @@ export function ChatPane({
         ...conversation,
         turns: [...conversation.turns, cleaned],
       });
+      // Mark this turn as just-finished so the bubble can flash a brief
+      // accent outline — the "send active only after complete" affordance.
+      setJustFinalized(id);
+      window.setTimeout(() => {
+        setJustFinalized((current) => (current === id ? null : current));
+      }, 600);
       activeMessageIdRef.current = null;
       activeAccumulatorRef.current = '';
       activeRequestStartRef.current = null;
@@ -215,11 +213,9 @@ export function ChatPane({
       citations: undefined,
       streaming: false,
     }));
-    // Persist as a finished turn so the redirect survives reopen.
-    const conversationUpdate: ConversationTurn = { role: 'assistant', content: redirect };
     onConversationUpdate({
       ...conversation,
-      turns: [...conversation.turns, conversationUpdate],
+      turns: [...conversation.turns, { role: 'assistant', content: redirect }],
     });
     activeMessageIdRef.current = null;
     activeAccumulatorRef.current = '';
@@ -242,17 +238,20 @@ export function ChatPane({
     activeAccumulatorRef.current = '';
   }, [conversation, onConversationUpdate]);
 
-  const handleFollowupMetadata = useCallback((md: PlanMetadata) => {
-    if (!activeMessageIdRef.current) return;
-    const elapsedMs = activeRequestStartRef.current
-      ? Math.max(0, performance.now() - activeRequestStartRef.current)
-      : undefined;
-    patchActiveMessage((m) => ({
-      ...m,
-      metadata: md,
-      ...(elapsedMs !== undefined ? { elapsedMs } : {}),
-    }));
-  }, []);
+  const handleFollowupMetadata = useCallback(
+    (md: PlanMetadata) => {
+      if (!activeMessageIdRef.current) return;
+      const elapsedMs = activeRequestStartRef.current
+        ? Math.max(0, performance.now() - activeRequestStartRef.current)
+        : undefined;
+      patchActiveMessage((m) => ({
+        ...m,
+        metadata: md,
+        ...(elapsedMs !== undefined ? { elapsedMs } : {}),
+      }));
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!followup.error) return;
@@ -283,7 +282,6 @@ export function ChatPane({
     });
     activeMessageIdRef.current = null;
     activeAccumulatorRef.current = '';
-    setError(followup.error);
   }, [followup.error, conversation, onConversationUpdate]);
 
   useEffect(() => {
@@ -354,7 +352,9 @@ export function ChatPane({
 
   const hasInitialPlan = !!conversation.initialPlan;
   const canChat = hasInitialPlan;
-  const showCrunching = canRunAnalyzer && initialMessages.length === 0 && !error;
+  const showCrunching = canRunAnalyzer && initialMessages.length === 0;
+
+  const showClearButton = !!onRequestClear && conversation.turns.length > 0;
 
   return (
     <div className="chat-pane">
@@ -366,11 +366,19 @@ export function ChatPane({
         ) : null}
 
         {initialMessages.map((message) => (
-          <ChatMessage key={message.id} message={message} />
+          <ChatMessage
+            key={message.id}
+            message={message}
+            highlight={justFinalized === message.id}
+          />
         ))}
 
         {turns.map((message) => (
-          <ChatMessage key={message.id} message={message} />
+          <ChatMessage
+            key={message.id}
+            message={message}
+            highlight={justFinalized === message.id}
+          />
         ))}
 
         {!canRunAnalyzer && !hasInitialPlan && initialMessages.length === 0 && turns.length === 0 ? (
@@ -381,12 +389,23 @@ export function ChatPane({
         ) : null}
       </div>
 
-      <ChatComposer
-        onSend={handleSend}
-        onStop={followup.stop}
-        streaming={followup.streaming}
-        disabled={!canChat}
-      />
+      <div className="chat-composer-stack">
+        <ChatComposer
+          onSend={handleSend}
+          onStop={followup.stop}
+          streaming={followup.streaming}
+          disabled={!canChat}
+        />
+        {showClearButton ? (
+          <button
+            type="button"
+            className="chat-clear-conversation"
+            onClick={onRequestClear}
+          >
+            {COPY.message.clearChat}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

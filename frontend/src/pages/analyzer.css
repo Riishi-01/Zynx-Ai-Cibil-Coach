@@ -1,155 +1,32 @@
 /**
- * Analyzer page layout: IDLE centering, the top-left summary chip, and the
- * chat/canvas split with its collapse behaviour.
+ * Page-level layout split for the session view (chat + canvas) plus the
+ * analyzer header. Lives at the bottom of analyzer.css because it
+ * composes the dock grid track already declared at the top of the file.
  */
 
-.analyzer {
-  min-height: 100vh;
-  padding: var(--space-6);
-}
-
-/* IDLE / SUBMITTING: centered form */
-
-.analyzer-idle {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-8);
-  min-height: calc(100vh - var(--space-12));
-}
-
-.analyzer-brand {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--fg);
-}
-
-.analyzer-error {
-  color: var(--bad);
-  font-size: var(--text-sm);
-  text-align: center;
-  max-width: 360px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.analyzer-error-retry {
-  background: transparent;
-  border: 1px solid var(--bad);
-  color: var(--bad);
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  transition: background var(--duration-focus) ease-out;
-}
-
-.analyzer-error-retry:hover {
-  background: rgba(239, 68, 68, 0.1);
-}
-
-.analyzer-error-retry:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* ANALYZED / CHATTING: top-left chip + split */
-
-.analyzer-header {
-  display: flex;
-  align-items: center;
-  padding-bottom: var(--space-4);
-}
-
-.input-summary {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-4);
-  transform-origin: top left;
-  /* scale 1 -> 0.85, per SPEC.md motion #1. Framer Motion's layout animation
-     handles the transform itself; this just sets the resting scale. */
-  transform: scale(0.85);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-
-.input-summary:hover {
-  border-color: var(--accent);
-}
-
-.input-summary:hover .input-summary-edit {
-  color: var(--accent);
-}
-
-.input-summary-edit {
-  color: var(--fg-dim);
-  font-size: var(--text-base);
-  transition: color var(--duration-focus) ease-out;
-}
-
-.input-summary:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.input-summary-chip {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-1);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-}
-
-.input-summary-label {
-  color: var(--fg-dim);
-}
-
-.input-summary-value {
-  color: var(--fg);
-  font-weight: 600;
-}
-
-.input-summary-divider {
-  width: 1px;
-  height: 16px;
-  background: var(--border);
-}
-
-/* Chat + canvas split */
-
-.analyzer-panes {
+.analyzer-session {
   display: grid;
-  grid-template-columns: 60% 40%;
+  grid-template-columns: minmax(0, 60fr) minmax(0, 40fr);
   gap: var(--space-6);
   align-items: start;
-  transition: grid-template-columns var(--duration-reveal) var(--ease-standard);
-}
-
-/* Canvas collapse (SPEC.md motion #7/#8): the canvas column goes to 0, chat
-   recenters to a readable max-width rather than filling the freed space. */
-.analyzer-panes--collapsed {
-  grid-template-columns: 1fr;
-}
-
-.analyzer-panes--collapsed .analyzer-pane--chat {
-  max-width: 720px;
-  margin: 0 auto;
-  transition: max-width var(--duration-reveal) var(--ease-standard);
+  height: calc(100vh - var(--space-12));
+  min-height: 600px;
 }
 
 .analyzer-pane {
-  min-height: 400px;
+  min-width: 0;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-@media (max-width: 900px) {
-  .analyzer-panes,
-  .analyzer-panes--collapsed {
-    grid-template-columns: 1fr;
+@media (max-width: 1100px) {
+  .analyzer-session {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .analyzer-pane--canvas {
+    display: none;
   }
 }
+
+/* Session view layout is appended above */

@@ -262,12 +262,14 @@ describe('Analyzer shell', () => {
     const user = userEvent.setup();
     render(<Analyzer />);
 
-    // While idle the docked chat button is disabled.
+    // While idle, the chat pane's Clear conversation button is hidden.
     expect(
-      screen.getByRole('button', { name: COPY.dock.chatAria }),
-    ).toBeDisabled();
+      screen.queryByRole('button', { name: COPY.message.clearChat }),
+    ).not.toBeInTheDocument();
 
-    // Activate the session by hovering History + clicking the row.
+    // Activate the session by hovering History + clicking the row. The
+    // seeded conversation already has 2 chat turns, so the Clear
+    // conversation button is reachable right away.
     const nav = screen.getByRole('navigation', { name: /main navigation/i });
     const historyWrapper = nav.querySelector('.dock-history-wrapper');
     if (!historyWrapper) throw new Error('history wrapper not found');
@@ -277,20 +279,19 @@ describe('Analyzer shell', () => {
     });
     await user.click(historyItem);
 
-    // The session is now active and the Clear button enables.
-    const chatButton = await screen.findByRole('button', {
-      name: COPY.dock.chatAria,
+    const clearButton = await screen.findByRole('button', {
+      name: COPY.message.clearChat,
     });
-    expect(chatButton).toBeEnabled();
+    expect(clearButton).toBeInTheDocument();
+    fireEvent.click(clearButton);
 
-    fireEvent.click(chatButton);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: COPY.message.clearChatConfirmConfirm }));
 
     await flush();
-    const stored = JSON.parse(
+    const after = JSON.parse(
       localStorage.getItem('cibil-coach.conversations.v1') || '[]',
     ) as Array<{ turns: unknown[] }>;
-    expect(stored[0].turns).toEqual([]);
+    expect(after[0].turns).toEqual([]);
   });
 });

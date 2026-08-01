@@ -1,4 +1,4 @@
-import type { ChatCitation, PlanMetadata } from '../../types';
+import type { ChatCitation } from '../../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { ChatCitations } from './ChatCitations';
 import { MessageMetadata } from './MessageMetadata';
@@ -11,34 +11,27 @@ export interface ChatMessageData {
   role: ChatRole;
   content: string;
   streaming?: boolean;
-  /** Citations emitted by the chat RAG pipeline for this reply. */
   citations?: ChatCitation[];
-  /** Token usage + cost + time for this assistant message. */
-  metadata?: PlanMetadata;
+  metadata?: import('../../types').PlanMetadata;
   elapsedMs?: number;
-  /** When set, render this assistant message as a structured plan. */
   plan?: import('../../types').PartialCoachPlan | null;
 }
 
 interface ChatMessageProps {
   message: ChatMessageData;
+  /** Marks the message as just-finalized so the bubble can flash an accent outline. */
+  highlight?: boolean;
 }
 
 /**
  * One bubble in the chat message list.
  *
- * Role surface:
- *   user       — right-aligned, accent-tinted background.
- *   assistant  — left-aligned, soft surface with the accent stripe.
- *                  Uses MarkdownRenderer for prose, PlanView when a
- *                  `plan` is supplied.
- *   error      — centered, bad-tinted surface, plain text.
- *
- * Assistant bubbles render a MessageMetadata footer below the markdown
- * (and below any citations) so each turn carries its own model/token/cost
- * detail.
+ * User / assistant / error each have distinct padding and alignment.
+ * Assistant bubbles render markdown (or PlanView when a `plan` is supplied)
+ * with a `MessageMetadata` footer carrying per-turn token/cost/time and
+ * `ChatCitations` for any source-marked tokens.
  */
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, highlight }: ChatMessageProps) {
   const roleClass =
     message.role === 'user'
       ? 'chat-message chat-message--user'
@@ -46,9 +39,11 @@ export function ChatMessage({ message }: ChatMessageProps) {
         ? 'chat-message chat-message--assistant'
         : 'chat-message chat-message--error';
 
+  const isFinalized = highlight && message.role === 'assistant' && !message.streaming;
+
   return (
     <div
-      className={roleClass}
+      className={`${roleClass}${isFinalized ? ' chat-message--finalized' : ''}`}
       role={message.role === 'error' ? 'alert' : undefined}
       data-message-id={message.id}
     >
@@ -69,8 +64,6 @@ export function ChatMessage({ message }: ChatMessageProps) {
               ) : null}
             </>
           )
-        ) : message.role === 'error' ? (
-          <p>{message.content}</p>
         ) : (
           <p>{message.content}</p>
         )}
