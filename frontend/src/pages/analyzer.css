@@ -105,6 +105,12 @@
   min-width: 0;
   min-height: 0;
   height: 100%;
+  overflow: hidden;
+}
+
+.analyzer-pane--canvas {
+  /* Canvas pane scrolls internally rather than pushing the page taller. */
+  overflow-y: auto;
 }
 
 @media (max-width: 1100px) {
