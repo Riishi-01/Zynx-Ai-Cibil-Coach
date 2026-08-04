@@ -133,6 +133,7 @@ def test_chat_emits_citations_after_stream(client, fake_embedder, monkeypatch):
 def test_chat_emits_guardrail_and_token_redirect(client, fake_embedder, monkeypatch):
     """A pre-check rejection returns the fixed redirect instead of an LLM call."""
     from app import web
+    from app.guardrails import ScopeGuard
 
     called = {"count": 0}
 
@@ -142,12 +143,10 @@ def test_chat_emits_guardrail_and_token_redirect(client, fake_embedder, monkeypa
 
     monkeypatch.setattr(web, "astream_chat", should_not_run)
 
-    async def fake_is_in_scope(vec):
-        from app.guardrails import ScopeVerdict
+    async def fake_check(self, text, *, question_vec=None):
+        return (False, "out", 0.9)
 
-        return ScopeVerdict(in_scope=False, reason="out")
-
-    monkeypatch.setattr(web, "is_in_scope", fake_is_in_scope)
+    monkeypatch.setattr(ScopeGuard, "check", fake_check)
 
     response = client.post(
         "/api/chat",
@@ -171,6 +170,7 @@ def test_chat_emits_guardrail_and_token_redirect(client, fake_embedder, monkeypa
 def test_chat_post_check_replaces_partial_stream(client, fake_embedder, monkeypatch):
     """If the model's first sentence drifts out of scope, replace it."""
     from app import web
+    from app.guardrails import ScopeGuard
 
     async def fake_astream_chat(system_prompt, user_message, model=None):
         for chunk in [
@@ -182,12 +182,10 @@ def test_chat_post_check_replaces_partial_stream(client, fake_embedder, monkeypa
 
     monkeypatch.setattr(web, "astream_chat", fake_astream_chat)
 
-    async def fake_is_in_scope(vec):
-        from app.guardrails import ScopeVerdict
+    async def fake_check(self, text, *, question_vec=None):
+        return (True, "in", 0.9)
 
-        return ScopeVerdict(in_scope=True, reason="in")
-
-    monkeypatch.setattr(web, "is_in_scope", fake_is_in_scope)
+    monkeypatch.setattr(ScopeGuard, "check", fake_check)
 
     response = client.post(
         "/api/chat",

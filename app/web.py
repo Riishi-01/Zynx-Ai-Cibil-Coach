@@ -3,6 +3,7 @@
 import os
 import json
 import logging
+import dataclasses
 from datetime import datetime
 from typing import Any, AsyncGenerator, Optional
 
@@ -20,7 +21,11 @@ from app.citations import cite_plan
 from app.chat_rag import TOP_K as CHAT_TOP_K, retrieve
 from app.citations_chat import ChatCitation, extract_citations
 from app.embeddings import Embedder
-from app.guardrails import contains_out_of_scope_terms, is_in_scope
+from app.guardrails import (
+    ScopeGuard,
+    check_response,
+    contains_out_of_scope_terms,
+)
 from app.label_service import build_labels_response, run_pipeline
 from app.canvas_service import build_canvas_response
 from app.api_schemas import LabelsResponse, CanvasResponse
@@ -224,6 +229,17 @@ async def analyze_customer(request: Request):
                     {"citations": [c.model_dump(mode="json") for c in citations]},
                 )
 
+                report = check_response(plan, facts, sanitised)
+                if not report.overall_pass:
+                    logging.warning(
+                        "guardrail_failures",
+                        extra={
+                            "pan": pan,
+                            "endpoint": "analyze",
+                            "report": dataclasses.asdict(report),
+                        },
+                    )
+
             yield _sse("done", {"ok": True})
 
         except LLMError as exc:
@@ -338,9 +354,12 @@ async def chat_followup(request: Request):
             yield _sse("error", {"message": f"Embedding failed: {exc}"})
             return
 
-        verdict = await is_in_scope(question_vec)
-        if not verdict.in_scope:
-            async for frame in _emit_guardrail_redirect(verdict.reason):
+        scope_guard = ScopeGuard()
+        in_scope, reason, _confidence = await scope_guard.check(
+            question, question_vec=question_vec
+        )
+        if not in_scope:
+            async for frame in _emit_guardrail_redirect(reason):
                 yield frame
             return
 
@@ -399,6 +418,17 @@ async def chat_followup(request: Request):
                 "citations",
                 {"citations": [c.to_dict() for c in citations]},
             )
+
+            report = check_response(full_answer, facts, sanitised)
+            if not report.overall_pass:
+                logging.warning(
+                    "guardrail_failures",
+                    extra={
+                        "pan": pan,
+                        "endpoint": "chat",
+                        "report": dataclasses.asdict(report),
+                    },
+                )
 
         yield _sse("done", {"ok": True})
 
